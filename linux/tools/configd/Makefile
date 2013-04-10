@@ -1,8 +1,8 @@
 LIBS		= -lpthread -ldl -rdynamic
 #CFLAGS		+= -rdynamic -Wall -O3 -D_FORTIFY_SOURCE=2 -fPIE -D_REENTRANT -I../../lana/
 CFLAGS		+= -Wall -O0 -I../../net/ -g
-#CC		= microblaze-unknown-linux-gnu-gcc
-#AR		= microblaze-unknown-linux-gnu-ar
+CC		= microblaze-unknown-linux-gnu-gcc
+AR		= microblaze-unknown-linux-gnu-ar
 
 core-objs	= configd.o
 lib-objs	= xutils.o reconfig.o ipc.o props.o lex.yy.o parser.tab.o  \

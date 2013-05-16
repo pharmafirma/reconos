@@ -4,5 +4,7 @@ AR	=	microblaze-unknown-linux-gnu-ar
 
 echo:
 
+webserver:
+
 clean:
 	rm -f *.o echo

@@ -66,6 +66,7 @@ int main(void)
 	int sock, ret, run = 0;
 	char buff_sender[BUFFSIZE];
 	char buff_receiver[BUFFSIZE];
+	struct sockaddr_nl src_addr;
 	char name[FBNAMSIZ];
 	int iterations = 10;
 	int i = 0;
@@ -93,6 +94,7 @@ int main(void)
 
 		printbuff(buff_sender, sizeof(buff_sender));
 	retry_sending:
+		printf("trying to send...\n");
 		// ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
 		ret = sendto(sock, buff_sender, sizeof(buff_sender), 0, NULL, 0);
 		if (ret == -1){
@@ -104,15 +106,15 @@ int main(void)
 		}
 
 	retry_receiving:
+		printf("trying to receive...\n");
 		// int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
-		bind(sock, buff_receiver, sizeof(buff_receiver));
+		//bind(sock, (struct sockaddr *) &src_addr, sizeof(src_addr));
 		// int listen(int sockfd, int backlog);
-
-	    // dieses TODO sollte jetzt rot werden. Blöder Editor... 
-		listen(sock, 5);
+		//listen(sock, 5);
 		// ssize_t recv(int sockfd, void *buf, size_t len, int flags);
-		ret = recv(sock, buff_receiver, sizeof(buff_receiver), 0);
-		//ret = sendto(sock, buff_sender, sizeof(buff_sender), 0, NULL, 0);
+		//ret = recv(sock, buff_receiver, sizeof(buff_receiver), 0);
+		ret = recvfrom(sock, buff_receiver, sizeof(buff_receiver), 0, NULL, 0);
+
 		if (ret == -1){
 			perror("listen");
 			fprintf(stderr, "iteration: %d\n", i);

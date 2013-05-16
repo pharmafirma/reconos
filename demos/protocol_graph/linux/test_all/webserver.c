@@ -66,6 +66,7 @@ int main(void)
 	int sock, ret, run = 0;
 	char buff_sender[BUFFSIZE];
 	char buff_receiver[BUFFSIZE];
+	struct sockaddr_nl src_addr;
 	char name[FBNAMSIZ];
 	int iterations = 10;
 	int i = 0;
@@ -105,7 +106,7 @@ int main(void)
 
 	retry_receiving:
 		// int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
-		bind(sock, buff_receiver, sizeof(buff_receiver));
+		bind(sock, (struct sockaddr *) &src_addr, sizeof(src_addr));
 		// int listen(int sockfd, int backlog);
 
 	    // dieses TODO sollte jetzt rot werden. Blöder Editor... 

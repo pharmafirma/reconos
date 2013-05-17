@@ -13,11 +13,18 @@
 #include <linux/netlink.h>
 #include <linux/types.h>
 #include <linux/if.h>
+#include <regex.h>
 
 #include "xt_vlink.h"
 #include "xt_fblock.h"
 
 #define BUFFSIZE	63
+
+// http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
+#define HTTP_OK	200 
+#define HTTP_BAD_REQUEST	400 
+#define HTTP_NOT_FOUND	404
+#define HTTP_INTERNAL_ERROR	500
 
 static inline void die(void)
 {
@@ -61,16 +68,117 @@ static void preparebuff(char buff[BUFFSIZE], int run)
 	}
 }
 
+static int compile_regex (regex_t * regex, const char * needle)
+{
+    int ret = regcomp(regex, needle, REG_EXTENDED|REG_NEWLINE);
+    if (ret != 0) {
+	    //char err[MAX_ERROR_MSG];
+	    //regerror (ret, regex, err, MAX_ERROR_MSG);
+        printf("Error while compiling regex '%s'.\n", needle);
+        printf("That probably means something is wrong with your sauce code.\n"); 
+            // or, more probably, something's wrong with your spaghetti code.
+        printf("This should not happen, aborting program!\n");
+        exit(1);
+    }
+    return 0;
+}
+
+int input_sanitizing(char * input){
+    // this function calls all other functions needed to sanitize input.
+    // returns 0 on success, 1 on error. 
+    int err = 0;
+
+    // TODO do input sanitizing here, e.g.
+    // check for ../
+    // in general, one should also check the input for non-ASCII characters and other nasty things here. Note that this was deliberately left out to make the program vulnerable for UTF-8 attacks.
+
+    return err; 
+}
+
+
+int check_get_request(char * haystack){
+    // this function checks if the argument is a simple GET request, as defined in HTTP/1.0
+    // returns 0 on success, 1 on error. 
+
+    regex_t regex;
+    const char * needle;
+    int ret; 
+    //const char * haystack;
+    needle = "GET .+ HTTP/1.0";
+    compile_regex(&regex, needle);
+
+    printf ("Trying to find '%s' in '%s': ", needle, haystack);
+    ret = regexec(&regex, haystack, 0, NULL, 0);
+    if( !ret ){
+        printf("Match.\n");
+        return 0;
+    } else if( ret == REG_NOMATCH ){
+        printf("No match.\n");
+        return 1;
+    } else{
+        //regerror(ret, &regex, msgbuf, sizeof(msgbuf));
+        printf("Regex match error.\n");
+        printf("This should not happen, aborting program!\n");
+        exit(1);
+    }
+
+    regfree (& regex);
+
+    return 0;
+}
+
+
+
 int main(void)
 {
 	int sock, ret, run = 0;
 	char buff_sender[BUFFSIZE];
-	char buff_receiver[BUFFSIZE];
-	struct sockaddr_nl src_addr;
+	//char buff_receiver[BUFFSIZE];
+	//struct sockaddr_nl src_addr;
+	char filename[BUFFSIZE]; 
+	struct sockaddr_nl;
 	char name[FBNAMSIZ];
 	int iterations = 10;
 	int i = 0;
 	struct timeval start_time, end_time;
+	//char filename[BUFFSIZE]; 
+	int http_status = HTTP_OK;
+
+
+	printf("instead of receiving something...\n");
+	char buff_receiver[BUFFSIZE] = "GET / HTTP/1.1"; // hard-coded for now.
+	printf("...we use the hard-coded value for now.\n");
+
+
+	ret = input_sanitizing(buff_receiver);
+    if (ret == 0)
+    {
+        printf("Input sanitizing successful.\n");
+        // TODO continue here: filename = buff_receiver[3]; // sizeof("GET ") = 4.
+        for (i = 0; i < BUFFSIZE; ++i)
+        {
+        	if (filename[i] == ' ')
+        	{
+        		filename[i] = '\0';
+        	}
+        }
+    } else {
+        printf("Input sanitizing found something evil. Request will not be processed!\n");
+        http_status = HTTP_INTERNAL_ERROR; 
+        // maybe bad request would be more suitable, but it does not really matter...
+    }
+
+    ret = check_get_request(buff_receiver);
+    //ret = check_get_request("asdf");
+    if (ret == 0)
+    {
+        printf("Yay, it's a GET request.\n");
+        // process request here
+    } else {
+        printf("No GET request found.\n");
+        http_status = HTTP_BAD_REQUEST;
+    }
+
 
 	// int socket(int domain, int type, int protocol);
 	// domain 27 is: ?
@@ -104,23 +212,23 @@ int main(void)
 			goto retry_sending;
 		}
 
-	retry_receiving:
-		// int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
-		bind(sock, (struct sockaddr *) &src_addr, sizeof(src_addr));
-		// int listen(int sockfd, int backlog);
+	// retry_receiving:
+	// 	// int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+	// 	bind(sock, (struct sockaddr *) &src_addr, sizeof(src_addr));
+	// 	// int listen(int sockfd, int backlog);
 
-	    // dieses TODO sollte jetzt rot werden. Blöder Editor... 
-		listen(sock, 5);
-		// ssize_t recv(int sockfd, void *buf, size_t len, int flags);
-		ret = recv(sock, buff_receiver, sizeof(buff_receiver), 0);
-		//ret = sendto(sock, buff_sender, sizeof(buff_sender), 0, NULL, 0);
-		if (ret == -1){
-			perror("listen");
-			fprintf(stderr, "iteration: %d\n", i);
-			sleep(5);
-			gettimeofday(&start_time, NULL); //first time we fail anyway since the protocol stack is not yet built...
-			goto retry_receiving;
-		}
+	//     // dieses TODO sollte jetzt rot werden. Blöder Editor... 
+	// 	listen(sock, 5);
+	// 	// ssize_t recv(int sockfd, void *buf, size_t len, int flags);
+	// 	ret = recv(sock, buff_receiver, sizeof(buff_receiver), 0);
+	// 	//ret = sendto(sock, buff_sender, sizeof(buff_sender), 0, NULL, 0);
+	// 	if (ret == -1){
+	// 		perror("listen");
+	// 		fprintf(stderr, "iteration: %d\n", i);
+	// 		sleep(5);
+	// 		gettimeofday(&start_time, NULL); //first time we fail anyway since the protocol stack is not yet built...
+	// 		goto retry_receiving;
+	// 	}
 
 		printbuff(buff_receiver, sizeof(buff_receiver));
 	}

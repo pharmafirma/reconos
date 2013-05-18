@@ -135,7 +135,7 @@ int main(void)
 	char buff_sender[BUFFSIZE];
 	//char buff_receiver[BUFFSIZE];
 	//struct sockaddr_nl src_addr;
-	char filename[BUFFSIZE]; 
+	char * filename; 
 	struct sockaddr_nl;
 	char name[FBNAMSIZ];
 	int iterations = 10;
@@ -146,7 +146,7 @@ int main(void)
 
 
 	printf("instead of receiving something...\n");
-	char buff_receiver[BUFFSIZE] = "GET / HTTP/1.1"; // hard-coded for now.
+	char buff_receiver[BUFFSIZE] = "GET / HTTP/1.0"; // hard-coded for now.
 	printf("...we use the hard-coded value for now.\n");
 
 
@@ -154,7 +154,8 @@ int main(void)
     if (ret == 0)
     {
         printf("Input sanitizing successful.\n");
-        // TODO continue here: filename = buff_receiver[3]; // sizeof("GET ") = 4.
+        // TODO continue here: 
+        filename = &buff_receiver + 4*sizeof(char); // sizeof("GET ") = 4.
         for (i = 0; i < BUFFSIZE; ++i)
         {
         	if (filename[i] == ' ')
@@ -162,11 +163,14 @@ int main(void)
         		filename[i] = '\0';
         	}
         }
+        printf("File name found: %s \n", filename);
     } else {
         printf("Input sanitizing found something evil. Request will not be processed!\n");
         http_status = HTTP_INTERNAL_ERROR; 
         // maybe bad request would be more suitable, but it does not really matter...
     }
+
+
 
     ret = check_get_request(buff_receiver);
     //ret = check_get_request("asdf");

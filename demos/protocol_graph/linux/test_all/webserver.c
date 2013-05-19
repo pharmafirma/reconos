@@ -129,11 +129,11 @@ int check_get_request(char * haystack){
 
 
 
-int main(void)
+int main(int argc, char ** argv)
 {
 	int sock, ret, run = 0;
 	char buff_sender[BUFFSIZE];
-	//char buff_receiver[BUFFSIZE];
+	char buff_receiver[BUFFSIZE];
 	//struct sockaddr_nl src_addr;
 	char * filename; 
 	struct sockaddr_nl;
@@ -146,8 +146,10 @@ int main(void)
 
 
 	printf("instead of receiving something...\n");
-	char buff_receiver[BUFFSIZE] = "GET / HTTP/1.0"; // hard-coded for now.
-	printf("...we use the hard-coded value for now.\n");
+	//char buff_receiver[BUFFSIZE] = "GET / HTTP/1.0"; // hard-coded for now.
+	*buff_receiver = (char *) argv[1];
+	printf("command line argument: %s\n", argv[1]);
+	printf("...we use the value from command line for now: %s\n", buff_receiver);
 
 
 	ret = input_sanitizing(buff_receiver);

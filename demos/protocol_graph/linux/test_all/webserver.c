@@ -135,7 +135,7 @@ int main(int argc, char ** argv)
 	char buff_sender[BUFFSIZE];
 	char buff_receiver[BUFFSIZE];
 	//struct sockaddr_nl src_addr;
-	char * filename; 
+	char filename[BUFFSIZE]; 
 	struct sockaddr_nl;
 	char name[FBNAMSIZ];
 	int iterations = 10;
@@ -145,9 +145,16 @@ int main(int argc, char ** argv)
 	int http_status = HTTP_OK;
 
 
+	// TODO: read www-directory from command line argument (-d).
+	// if no argument is given, print a warning and use working directory.
+
+
 	printf("instead of receiving something...\n");
 	//char buff_receiver[BUFFSIZE] = "GET / HTTP/1.0"; // hard-coded for now.
-	*buff_receiver = (char *) argv[1];
+	strncpy(buff_receiver, argv[1], sizeof(buff_receiver));
+	// terminate string, just in case it isn't yet
+	buff_receiver[BUFFSIZE] = '\0';
+	//*buff_receiver = (char *) argv[1];
 	printf("command line argument: %s\n", argv[1]);
 	printf("...we use the value from command line for now: %s\n", buff_receiver);
 
@@ -157,7 +164,8 @@ int main(int argc, char ** argv)
     {
         printf("Input sanitizing successful.\n");
         // TODO continue here: 
-        filename = &buff_receiver + 4*sizeof(char); // sizeof("GET ") = 4.
+        strncpy(filename, &buff_receiver[3], sizeof(buff_receiver)-4*sizeof(char));
+        //filename = &buff_receiver + 4*sizeof(char); // sizeof("GET ") = 4.
         for (i = 0; i < BUFFSIZE; ++i)
         {
         	if (filename[i] == ' ')
@@ -185,6 +193,18 @@ int main(int argc, char ** argv)
         http_status = HTTP_BAD_REQUEST;
     }
 
+
+    // some more debug output
+    printf("input sanitizing done. \n");
+    printf("File to be read: %s \n", filename);
+    printf("HTTP status code: %d \n", http_status);
+
+
+    // TODO: read the file from disk.
+    // and send it to the socket. 
+
+
+    // create socket, this part is copied from the echo program.
 
 	// int socket(int domain, int type, int protocol);
 	// domain 27 is: ?

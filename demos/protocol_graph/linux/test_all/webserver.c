@@ -18,12 +18,14 @@
 #include "xt_vlink.h"
 #include "xt_fblock.h"
 
-#define BUFFSIZE	63
+#define BUFFSIZE     	63
+#define FILENAME_SIZE	63
 
 // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
-#define HTTP_OK	200 
-#define HTTP_BAD_REQUEST	400 
-#define HTTP_NOT_FOUND	404
+#define HTTP_OK            	200 
+#define HTTP_BAD_REQUEST   	400
+#define HTTP_FORBIDDEN     	403 
+#define HTTP_NOT_FOUND     	404
 #define HTTP_INTERNAL_ERROR	500
 
 static inline void die(void)
@@ -59,14 +61,14 @@ static void printbuff(char buff[BUFFSIZE], int len)
 }
 
 
-static void preparebuff(char buff[BUFFSIZE], int run)
-{
-	int i = BUFFSIZE, j = run % BUFFSIZE, l;
-	for (l = 0; i-- > 0; ++l) {
-		buff[l] = (uint8_t) j;
-		j = (j + 1) % BUFFSIZE;
-	}
-}
+// static void preparebuff(char buff[BUFFSIZE], int run)
+// {
+//	int i = BUFFSIZE, j = run % BUFFSIZE, l;
+//	for (l = 0; i-- > 0; ++l) {
+//		buff[l] = (uint8_t) j;
+//		j = (j + 1) % BUFFSIZE;
+//	}
+// }
 
 static int compile_regex (regex_t * regex, const char * needle)
 {
@@ -76,8 +78,8 @@ static int compile_regex (regex_t * regex, const char * needle)
 	    //regerror (ret, regex, err, MAX_ERROR_MSG);
         printf("Error while compiling regex '%s'.\n", needle);
         printf("That probably means something is wrong with your sauce code.\n"); 
-            // or, more probably, something's wrong with your spaghetti code.
-        printf("This should not happen, aborting program!\n");
+			// or, more probably, something's wrong with your spaghetti code.
+        perror("Error compiling regex. This should not happen. Aborting program!\n");
         exit(1);
     }
     return 0;
@@ -90,7 +92,10 @@ int input_sanitizing(char * input){
 
     // TODO do input sanitizing here, e.g.
     // check for ../
-    // in general, one should also check the input for non-ASCII characters and other nasty things here. Note that this was deliberately left out to make the program vulnerable for UTF-8 attacks.
+
+    //	Note that, in general, one should also check the input for non-ASCII	//
+    //	characters and other nasty things here. This was deliberately left  	//
+    //	out to make the program vulnerable for UTF-8 attacks.               	//
 
     return err; 
 }
@@ -109,64 +114,71 @@ int check_get_request(char * haystack){
 
     printf ("Trying to find '%s' in '%s': ", needle, haystack);
     ret = regexec(&regex, haystack, 0, NULL, 0);
-    if( !ret ){
-        printf("Match.\n");
+    if(!ret){
+        printf("Match. \n");
         return 0;
-    } else if( ret == REG_NOMATCH ){
-        printf("No match.\n");
+    } else if (ret == REG_NOMATCH){
+        printf("No match. \n");
         return 1;
-    } else{
+    } else {
         //regerror(ret, &regex, msgbuf, sizeof(msgbuf));
-        printf("Regex match error.\n");
-        printf("This should not happen, aborting program!\n");
+        perror("Regex match error. \n");
+        perror("This should not happen, aborting program! \n");
         exit(1);
     }
 
-    regfree (& regex);
+    regfree (&regex);
 
     return 0;
 }
 
 
 
-int main(int argc, char ** argv)
-{
-	int sock, ret, run = 0;
-	char buff_sender[BUFFSIZE];
-	char buff_receiver[BUFFSIZE];
-	//struct sockaddr_nl src_addr;
-	char filename[BUFFSIZE]; 
-	struct sockaddr_nl;
-	char name[FBNAMSIZ];
-	int iterations = 10;
-	int i = 0;
-	struct timeval start_time, end_time;
-	//char filename[BUFFSIZE]; 
-	int http_status = HTTP_OK;
+int main(int argc, char ** argv) {
+	int     	sock;
+	int     	ret;
+	//int   	run = 0;
+	char    	buff_sender[BUFFSIZE];
+	char    	buff_receiver[BUFFSIZE];
+	//struct	sockaddr_nl src_addr;
+	char    	filename[FILENAME_SIZE]; 
+	char    	www_rootdir[FILENAME_SIZE]; 
+	char    	path[2*FILENAME_SIZE];
+	//char  	buff_ifile[BUFFSIZE]
+	struct  	sockaddr_nl;
+	char    	name[FBNAMSIZ];
+	int     	iterations = 10;
+	int     	i = 0;
+	struct  	timeval start_time, end_time;
+	//char  	filename[FILENAME_SIZE]; 
+	int     	http_status = HTTP_OK;
 
 
-	// TODO: read www-directory from command line argument (-d).
+
+	// TODO: read www root directory from command line argument (-d).
 	// if no argument is given, print a warning and use working directory.
+	strcpy(www_rootdir, "/var/www/");
+	printf("Using www root directory: %s\n", www_rootdir);
 
 
 	printf("instead of receiving something...\n");
 	//char buff_receiver[BUFFSIZE] = "GET / HTTP/1.0"; // hard-coded for now.
 	strncpy(buff_receiver, argv[1], sizeof(buff_receiver));
 	// terminate string, just in case it isn't yet
-	buff_receiver[BUFFSIZE] = '\0';
+	buff_receiver[FILENAME_SIZE] = '\0';
 	//*buff_receiver = (char *) argv[1];
 	printf("command line argument: %s\n", argv[1]);
 	printf("...we use the value from command line for now: %s\n", buff_receiver);
 
 
 	ret = input_sanitizing(buff_receiver);
-    if (ret == 0)
-    {
+    if (ret == 0) {
         printf("Input sanitizing successful.\n");
         // TODO continue here: 
-        strncpy(filename, &buff_receiver[3], sizeof(buff_receiver)-4*sizeof(char));
+        strncpy(filename, buff_receiver+4, sizeof(buff_receiver) - 4*sizeof(char));
+        //filename = substr(buff_receiver, [3], sizeof(buff_receiver) - 4*sizeof(char));
         //filename = &buff_receiver + 4*sizeof(char); // sizeof("GET ") = 4.
-        for (i = 0; i < BUFFSIZE; ++i)
+        for (i = 0; i < FILENAME_SIZE; i++)
         {
         	if (filename[i] == ' ')
         	{
@@ -196,15 +208,69 @@ int main(int argc, char ** argv)
 
     // some more debug output
     printf("input sanitizing done. \n");
-    printf("File to be read: %s \n", filename);
+    printf("Name of file to be read: %s \n", filename);
     printf("HTTP status code: %d \n", http_status);
 
 
+    // path = www_rootdir + "/" + filename
+    strncpy(path, www_rootdir, FILENAME_SIZE);
+    strcat(path, "/");
+    strncat(path, filename, FILENAME_SIZE);
+
+    // TODO: Append index.htm(l) if necessary.
+
     // TODO: read the file from disk.
     // and send it to the socket. 
+    //int i;
+    printf("Trying to open file: %s \n", path);
+    FILE * fp = fopen(path, "r");
+ 
+    if (fp == NULL) {
+        printf("Failed to open file: %s \n", path);
+        http_status = HTTP_NOT_FOUND; 
+        // TODO:	implement different error messages according to what exactly happened:
+        //      	- File not found -> HTTP_NOT_FOUND
+        //      	- Permission denied -> HTTP_FORBIDDEN
+        //      	- other (internal) error -> HTTP_INTERNAL_ERROR
+    } else {
+		printf("successfully opened file: %s \n", path);
+
+		printf("Copying file contents to sender buffer... \n");
+		for (i = 0; i < BUFFSIZE; i++) {
+			ret = getc(fp);
+			if (ret == EOF) {
+				fputs("File is shorter than the sender buffer.\n", stderr);
+				buff_sender[i] = '\0'; 
+				continue; 
+			} 
+		}
+		buff_sender[i] = ret; 
+		// TODO: implement what to do if the file is longer than the buffer.
+		printf("File is longer than the sender buffer. Only the first %d bytes were copied.\n", i);
+		buff_sender[i] = '\0'; 
+    }
+
+	
+    if(fp) {
+		printf("Closing file. \n");
+		fclose(fp);
+	}
+ 
+
+    printf("The sender buffer is: \n");
+    printbuff(buff_sender, BUFFSIZE);
+ 
+ 
+
+ 
+ 
+ 
 
 
-    // create socket, this part is copied from the echo program.
+
+
+
+    // create socket, this part was copied from the echo program.
 
 	// int socket(int domain, int type, int protocol);
 	// domain 27 is: ?
@@ -222,7 +288,7 @@ int main(int argc, char ** argv)
 	fprintf(stderr, "our instance: %s\n", name);
 	printf("our instance: %s\n", name);
 	printf("size: %lu\n", sizeof(buff_sender));	
-	preparebuff(buff_sender, run++);
+	//preparebuff(buff_sender, run++);
 	
 	for (i = 0; i < iterations; i++) {
 

@@ -140,8 +140,8 @@ int check_get_request(char * haystack){
     const char * needle;
     int ret; 
     //const char * haystack;
-    //needle = "GET .+ HTTP/1.0";
-    needle = "GET .+\r\n";
+    needle = "GET .+ HTTP/1.0";	// for debugging only.
+    //needle = "GET .+\r\n";   	// TODO: use this as soon as receiving works.
     compile_regex(&regex, needle);
 
     printf ("Trying to find '%s' in '%s': ", needle, haystack);
@@ -228,8 +228,16 @@ int main(int argc, char ** argv) {
     }
 
 
-    if (http_status == HTTP_OK) {
-		printf("Everything seems OK so far. Extracting file name from request.\n");
+    if (http_status != HTTP_OK)  { 
+	  printf("Something went wrong with this request.\n");
+	  printf("Copying error message to sender buffer... \n");
+	  sprintf (buff_sender, "HTTP error %d.", http_status);
+	  
+	  // bla bla bla
+	}
+    else { // i.e. http_status == HTTP_OK
+		printf("Everything seems OK so far. \n");
+		printf("Will now extract file name from request and try to read file.\n");
 
 		// A simple Request, as defined in RFC 1945, looks like:
 		//	"GET" SP Request-URI CR LF
@@ -305,20 +313,15 @@ int main(int argc, char ** argv) {
 		}
 	 
 
-	    printf("Contents of the sender buffer (after reading file): \n");
-	    printbuff(buff_sender, BUFFSIZE);
 	 
 	 
 	} // end if (http_status == HTTP_OK)
-	else { 
-	  
-	  
-	  // bla bla bla
-	}
 	   
 
 	 
 	 
+	    printf("Contents of the sender buffer (before creating socket): \n");
+	    printbuff(buff_sender, BUFFSIZE);
 	 
 
 

@@ -5,8 +5,8 @@ use ieee.std_logic_1164.all;
  use ieee.std_logic_1164.all;
  use ieee.numeric_std.all;
 
-library proc_common_v3_00_a;
-use proc_common_v3_00_a.proc_common_pkg.all;
+--library proc_common_v3_00_a;
+--use proc_common_v3_00_a.proc_common_pkg.all;
 
 library reconos_v3_00_a;
 use reconos_v3_00_a.reconos_pkg.all;
@@ -18,39 +18,39 @@ use ana_v1_00_a.anaPkg.all;
 entity ips is
 --	generic (
 --		destination	: std_logic_vector(5 downto 0);
---		sender		: std_logic
+--		sender     		: std_logic
 --	);
-	port (
-		rst : in std_logic;
-		clk : in std_logic;
-		rx_ll_sof : in std_logic;
-		rx_ll_eof : in std_logic;
-		rx_ll_data : in std_logic_vector(7 downto 0);
-		rx_ll_src_rdy : in std_logic;
-		rx_ll_dst_rdy : out std_logic;	
-		tx_ll_sof : out std_logic;
-		tx_ll_eof : out std_logic;
-		tx_ll_data : out std_logic_vector(7 downto 0);
-		tx_ll_src_rdy : out std_logic;
-		tx_ll_dst_rdy : in std_logic
-	);
+  	port (
+  		rst :          	in 	std_logic;
+  		clk :          	in 	std_logic;
+  		rx_ll_sof :    	in 	std_logic;
+  		rx_ll_eof :    	in 	std_logic;
+  		rx_ll_data :   	in 	std_logic_vector(7 downto 0);
+  		rx_ll_src_rdy :	in 	std_logic;
+  		rx_ll_dst_rdy :	out	std_logic;	
+  		tx_ll_sof :    	out	std_logic;
+  		tx_ll_eof :    	out	std_logic;
+  		tx_ll_data :   	out	std_logic_vector(7 downto 0);
+  		tx_ll_src_rdy :	out	std_logic;
+  		tx_ll_dst_rdy :	in 	std_logic
+  	);
 
 end ips;
 
 architecture implementation of ips is
-	constant C_NR_OF_ELEMENTS : unsigned := 24;
-	constant C_MAX_CODE_LEN : unsigned := 10;
+	constant C_NR_OF_ELEMENTS :	integer := 24;
+	constant C_MAX_CODE_LEN :  	integer := 10;
 	
-	type value_array is array (0 to C_NR_OF_ELEMENTS - 1) of unsigned integer range 0 to 255; 
-	signal value     : value_array;
-	type code_array is array (0 to C_NR_OF_ELEMENTS - 1) of std_logic_vector (0 to C_MAX_CODE_LEN - 1); 
-	signal code     : code_array;
-	type len_array is array (0 to C_NR_OF_ELEMENTS - 1) of unsigned integer range 0 to C_MAX_CODE_LEN;
-	signal len     : len_array;
-	signal plain 		: std_logic_vector(0 to 8 * 1500); --max packet size
-	signal plain_next	: std_logic_vector(0 to 8 * 1500);
-	signal encoded		: std_logic_vector(0 to 8 * 1500); --if it gets longer, we simply truncate it.
-	signal encoded_next : std_logic_vector(0 to 8 * 1500);
+	type value_array     	is array (0 to C_NR_OF_ELEMENTS - 1) of unsigned integer range 0 to 255; 
+	signal value :       	value_array;
+	type code_array      	is array (0 to C_NR_OF_ELEMENTS - 1) of std_logic_vector (0 to C_MAX_CODE_LEN - 1); 
+	signal code :        	code_array;
+	type len_array       	is array (0 to C_NR_OF_ELEMENTS - 1) of unsigned integer range 0 to C_MAX_CODE_LEN;
+	signal len :         	len_array;
+	signal plain :       	std_logic_vector(0 to 8 * 1500); --max packet size
+	signal plain_next :  	std_logic_vector(0 to 8 * 1500);
+	signal encoded :     	std_logic_vector(0 to 8 * 1500); --if it gets longer, we simply truncate it.
+	signal encoded_next :	std_logic_vector(0 to 8 * 1500);
 	
 	-- PUT YOUR OWN COMPONENTS HERE
 

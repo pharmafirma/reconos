@@ -27,7 +27,7 @@ architecture RTL of hwt_ips_tb is
 	signal clk : std_logic;
 	signal rst : std_logic;
 	
-	component hwt_ips is
+	component ips is
 		port (
 		rst         : in std_logic;
 		clk			: in std_logic;
@@ -51,6 +51,7 @@ begin
 	
 	packets : process(packet_state, packet_len, cur_len) is
 	begin
+	-- Es werden einfach diverse Signale geschickt, nach bestimmten Zeiten.
 	tx_ll_sof  <= '0';
 	tx_ll_eof  <= '0';
 	tx_ll_src_rdy  <= '1';
@@ -97,7 +98,7 @@ begin
 	    end if;
 	end process;
 
-	hwt_ips_inst : hwt_ips 
+	ips_inst : ips 
 	port map(
 		rst         => rst,
 		clk			 => clk,

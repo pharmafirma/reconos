@@ -165,6 +165,51 @@ int check_get_request(char * haystack){
 }
 
 
+static int get_argument(char needle, char ** result, int argc, char ** argv){
+    // This function gets an argument from the command line.
+    // e.g. for the command: ./myprogram -a foo
+    // foo yould be the result for needle 'a'.
+    // 
+    // arguments:   	needle: Character for the argument (-a)
+    //              	result: String with the resulting arguent (foo)
+    //              	argc and argv: the list and count of arguments, as you would probably expect :-).
+    // return value:	Status code
+    //     0:       	No error, exactly one argument found.
+    //    -1:       	No argument found.            
+    //     1:       	More than one argument found
+
+
+    // known bugs:	Note That the function is not intended to interpret flag-like arguments, such as -abc.
+    //            	If you enter something like ./myprogram -a -b -c, it will interpret
+    //            		both: -b as the result of -a 
+    //            		and -c as the result of -b.
+
+
+	int   	i = 0;
+	//char	c;
+	int   	ret = -1; // the default for this value must be "nothing found", as the for loop will not execute if there are no arguements at all.
+
+	for (i = 1; i < argc; ++i){
+		// check if we have an value in the form "one dash, one character" (-a)
+		if (argv[i][0] == '-' && argv[i][2] == '\0'){
+			// if yes, check if it is the argument we are looking for
+			if (argv[i][1] == needle){
+				// check if a next value exists
+				if(i+1 < argc){
+					*result = argv[i+1];
+					ret++;
+				}
+			} 
+		}
+		if (ret > 1){ // if more than two arguments have been found so far...
+			ret = 1;
+		}
+
+	}
+    return ret;
+}
+
+
 
 int main(int argc, char ** argv) {
 	int     	sock;
@@ -184,23 +229,83 @@ int main(int argc, char ** argv) {
 	struct  	timeval start_time, end_time;
 	//char  	filename[FILENAME_SIZE]; 
 	int     	http_status = HTTP_OK;
+	char *  	tmp; // just a pointer, no space reserved!
 
 
 
-	// TODO: read www root directory from command line argument (-d).
+	// read www root directory from command line argument (-d).
 	// if no argument is given, print a warning and use the default directory.
-	strcpy(www_rootdir, "/var/www/");
-	printf("Using www root directory: %s\n", www_rootdir);
 
+	ret = get_argument('d', &tmp, argc, argv);
+    if (ret == 0){
+        printf("Yay, we found a command line argument: ");
+        printf("-%c is: %s\n", 'd', tmp);
+        strncpy(www_rootdir, tmp, BUFFSIZE);
+        // process argument here
+    } else {
+		strcpy(www_rootdir, "/var/www/");
+		printf("The option -d was not specified. Using default www root directory: %s\n", www_rootdir);
+	}
+
+
+
+
+	//		########  ######## ########  ##     ##  ######   
+	//		##     ## ##       ##     ## ##     ## ##    ##  
+	//		##     ## ##       ##     ## ##     ## ##        
+	//		##     ## ######   ########  ##     ## ##   #### 
+	//		##     ## ##       ##     ## ##     ## ##    ##  
+	//		##     ## ##       ##     ## ##     ## ##    ##  
+	//		########  ######## ########   #######   ######  
+	//		                        Le     Debug     Code   
+	                                       
+
+
+	char *	pre_recorded_input_message[] = {            	// -t	UTF-8	directory
+	      	"GET index.html HTTP/1.1",                  	// 0 	no   	/var/www
+	      	"GET ../index.html HTTP/1.1",               	// 1 	no   	/var
+	      	"GET ../../index.html HTTP/1.1",            	// 2 	no   	/
+	      	"GET \x2e\x2e\x2index.html HTTP/1.1",       	// 3 	no   	/var
+	      	"GET \x2e./index.html HTTP/1.1",            	// 4 	no   	/var
+	      	"GET \xc0\xae./index.html HTTP/1.1",        	// 5 	yes  	/var
+	      	"GET \xe0\x80\xae./index.html HTTP/1.1",    	// 6 	yes  	/var
+	      	"GET \xf0\x80\x80\xae./index.html HTTP/1.1",	// 7 	yes  	/var
+
+		// Legend
+		//	-t:       	test number (can be chosen via command line argument -t)
+		//	UTF-8:    	yes means the webserver should let it pass unnoticed.
+		//	directory:	refers to the default directory /var/www
+	};
+
+	// which test to perform?
+	ret = get_argument('t', &tmp, argc, argv);
+    if (ret == 0){
+        printf("Yay, we found a command line argument: ");
+        printf("-%c is: %s \n", 't', tmp);
+        // process argument here
+    } else { 
+		strcpy(tmp, "0");
+	}
 
 	printf("instead of receiving something...\n");
 	//char buff_receiver[BUFFSIZE] = "GET / HTTP/1.0"; // hard-coded for now.
-	strncpy(buff_receiver, argv[1], sizeof(buff_receiver));
+
+	//strncpy(buff_receiver, argv[1], sizeof(buff_receiver));
+	//printf("...we use the value from command line for now: %s\n", buff_receiver);
+
+	strncpy(buff_receiver, pre_recorded_input_message[atoi(tmp)], sizeof(buff_receiver));
+	printf("...we use this pre-recorded input message for now: %s\n", buff_receiver);
+	printf("So that science can still be done :-).\n");
+
 	// terminate string, just in case it isn't yet
 	buff_receiver[FILENAME_SIZE] = '\0';
 	//*buff_receiver = (char *) argv[1];
 	//printf("command line argument: %s\n", argv[1]);
-	printf("...we use the value from command line for now: %s\n", buff_receiver);
+
+	// fin du Debug Code
+
+
+
 
 
 	ret = input_sanitizing(buff_receiver);

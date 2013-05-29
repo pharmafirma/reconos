@@ -18,15 +18,16 @@
 #include "xt_vlink.h"
 #include "xt_fblock.h"
 
-#define BUFFSIZE     	63
-#define FILENAME_SIZE	63
+#define	BUFFSIZE       	63
+#define	FILENAME_SIZE  	63
+//     	MY_COMPILE_TIME	will be set by the CC. See Makefile.
 
-// http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
-#define HTTP_OK            	200 
-#define HTTP_BAD_REQUEST   	400
-#define HTTP_FORBIDDEN     	403 
-#define HTTP_NOT_FOUND     	404
-#define HTTP_INTERNAL_ERROR	500
+// From	http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
+#define	HTTP_OK            	200 
+#define	HTTP_BAD_REQUEST   	400
+#define	HTTP_FORBIDDEN     	403 
+#define	HTTP_NOT_FOUND     	404
+#define	HTTP_INTERNAL_ERROR	500
 
 static inline void die(void)
 {
@@ -115,12 +116,12 @@ int input_sanitizing(char * input){
 
     printf ("Trying to find '%s' in '%s': ", needle, input);
     ret = regexec(&regex, input, 0, NULL, 0);
-    if(!ret){
-        printf("Match, we found a possible directory traversal attack. \n");
-        return 1;
-    } else if (ret == REG_NOMATCH){
+    //if(!ret){
+    //    printf("Match, we found a possible directory traversal attack. \n");
+    //    return 1;
+    //} else if (ret == REG_NOMATCH){
         printf("No match, everything OK. \n");
-    } 
+    //} 
 
 
     //	Note that, in general, one should also check the input for non-ASCII	//
@@ -140,8 +141,8 @@ int check_get_request(char * haystack){
     const char * needle;
     int ret; 
     //const char * haystack;
-    needle = "GET .+ HTTP/1.0";	// for debugging only.
-    //needle = "GET .+\r\n";   	// TODO: use this as soon as receiving works.
+    //needle = "GET .+ HTTP/1.0";	// for debugging only.
+    needle = "GET .+\r\n";       	// TODO: use this as soon as receiving works.
     compile_regex(&regex, needle);
 
     printf ("Trying to find '%s' in '%s': ", needle, haystack);
@@ -230,12 +231,15 @@ int main(int argc, char ** argv) {
 	//char  	filename[FILENAME_SIZE]; 
 	int     	http_status = HTTP_OK;
 	char *  	tmp; // just a pointer, no space reserved!
+	
 
+
+	// the purest debug output evar.
+	printf("Webserver starting... Compile Time: %dh.\n", MY_COMPILE_TIME);
 
 
 	// read www root directory from command line argument (-d).
 	// if no argument is given, print a warning and use the default directory.
-
 	ret = get_argument('d', &tmp, argc, argv);
     if (ret == 0){
         printf("Yay, we found a command line argument: ");
@@ -244,10 +248,10 @@ int main(int argc, char ** argv) {
         // process argument here
     } else {
 		strcpy(www_rootdir, "/var/www/");
-		printf("The option -d was not specified. Using default www root directory: %s\n", www_rootdir);
+		printf("Option -d was not specified. Using default www root directory.\n");
 	}
 
-
+	printf("www root directory is: %s\n", www_rootdir);
 
 
 	//		########  ######## ########  ##     ##  ######   
@@ -261,30 +265,42 @@ int main(int argc, char ** argv) {
 	                                       
 
 
-	char *	pre_recorded_input_message[] = {            	// -t	UTF-8	directory
-	      	"GET index.html HTTP/1.1",                  	// 0 	no   	/var/www
-	      	"GET ../index.html HTTP/1.1",               	// 1 	no   	/var
-	      	"GET ../../index.html HTTP/1.1",            	// 2 	no   	/
-	      	"GET \x2e\x2e\x2index.html HTTP/1.1",       	// 3 	no   	/var
-	      	"GET \x2e./index.html HTTP/1.1",            	// 4 	no   	/var
-	      	"GET \xc0\xae./index.html HTTP/1.1",        	// 5 	yes  	/var
-	      	"GET \xe0\x80\xae./index.html HTTP/1.1",    	// 6 	yes  	/var
-	      	"GET \xf0\x80\x80\xae./index.html HTTP/1.1",	// 7 	yes  	/var
+	char *	pre_recorded_input_message[] = {       	// test	UTF-8	valid	replaces	result
+	      	"GET index.html\r\n",                  	// 0   	no   	yes  	        	/var/www
+	      	"GET ../index.html\r\n",               	// 1   	no   	yes  	        	/var
+	      	"GET ../../index.html\r\n",            	// 2   	no   	yes  	        	/
+	      	"GET \x2e\x2e\x2findex.html\r\n",      	// 3   	no   	yes  	../     	/var
+	      	"GET \x2e./index.html\r\n",            	// 4   	no   	yes  	.       	/var
+	      	"GET \xc0\xae./index.html\r\n",        	// 5   	yes  	no   	.       	/var
+	      	"GET \xe0\x80\xae./index.html\r\n",    	// 6   	yes  	no   	.       	/var
+	      	"GET \xf0\x80\x80\xae./index.html\r\n",	// 7   	yes  	no   	.       	/var
+	      	"GET .\xc0\xae/index.html\r\n",        	// 8   	yes  	no   	 .      	/var
+	      	"GET .\xe0\x80\xae/index.html\r\n",    	// 9   	yes  	no   	 .      	/var
+	      	"GET .\xf0\x80\x80\xae/index.html\r\n",	// 10  	yes  	no   	 .      	/var
+	      	"GET ..\xc0\xafindex.html\r\n",        	// 11  	yes  	no   	  /     	/var
+	      	"GET ..\xe0\x80\xafindex.html\r\n",    	// 12  	yes  	no   	  /     	/var
+	      	"GET ..\xf0\x80\x80\xafindex.html\r\n",	// 13  	yes  	no   	  /     	/var
+	      	"GET \xc3\xa4.html\r\n",               	// 14  	yes  	yes  	ä       	/var/www/ä.html
+	      	"GET ind\xc1\xa5x.html\r\n",           	// 15  	yes  	no   	e       	/var
 
 		// Legend
-		//	-t:       	test number (can be chosen via command line argument -t)
-		//	UTF-8:    	yes means the webserver should let it pass unnoticed.
-		//	directory:	refers to the default directory /var/www
+		//	test:    	test number (can be chosen via command line argument -t)
+		//	UTF-8:   	yes means the webserver should let it pass unnoticed.
+		//	valid:   	Does this represent a valid UTF-8 (resp ASCII) string?
+		//	replaces:	Which character(s) is/are replaced?
+		//	result:  	The resulting file or directory (referring to the default directory /var/www)
 	};
 
 	// which test to perform?
+	printf("Trying to find argument -t\n");
 	ret = get_argument('t', &tmp, argc, argv);
     if (ret == 0){
         printf("Yay, we found a command line argument: ");
         printf("-%c is: %s \n", 't', tmp);
         // process argument here
     } else { 
-		strcpy(tmp, "0");
+		printf("Please specify a test using the -t option. Exiting...\n");
+		exit(1);
 	}
 
 	printf("instead of receiving something...\n");
@@ -333,14 +349,7 @@ int main(int argc, char ** argv) {
     }
 
 
-    if (http_status != HTTP_OK)  { 
-	  printf("Something went wrong with this request.\n");
-	  printf("Copying error message to sender buffer... \n");
-	  sprintf (buff_sender, "HTTP error %d.", http_status);
-	  
-	  // bla bla bla
-	}
-    else { // i.e. http_status == HTTP_OK
+    if (http_status == HTTP_OK) { 
 		printf("Everything seems OK so far. \n");
 		printf("Will now extract file name from request and try to read file.\n");
 
@@ -420,7 +429,13 @@ int main(int argc, char ** argv) {
 
 	 
 	 
-	} // end if (http_status == HTTP_OK)
+	} else { // i.e. http_status != HTTP_OK
+	  printf("Something went wrong with this request.\n");
+	  printf("Copying error message to sender buffer... \n");
+	  sprintf (buff_sender, "HTTP error %d.", http_status);
+	  
+	  // TODO: do we need something more here?
+	}
 	   
 
 	 
@@ -491,9 +506,22 @@ int main(int argc, char ** argv) {
 
 
 	gettimeofday(&end_time, NULL); //first time we fail anyway since the protocol stack is not yet built...
-	int delta = (end_time.tv_sec - start_time.tv_sec)*1000000 + (end_time.tv_usec - start_time.tv_usec);
-	printf("\ndone: start_time.tv_sec %d, tv_usec %d, end_time.tv_sec %d, tv_usec %d, delta in usec %d\n", (int)start_time.tv_sec, (int)start_time.tv_usec, (int)end_time.tv_sec, (int)end_time.tv_usec, (int)delta);
-	fprintf(stderr, "\n done: start_time.tv_sec %d, tv_usec %d, end_time.tv_sec %d, tv_usec %d, delta in usec %d\n", (int)start_time.tv_sec, (int)start_time.tv_usec, (int)end_time.tv_sec, (int)end_time.tv_usec, (int)delta);
+	int delta	= (end_time.tv_sec - start_time.tv_sec)*1000000 
+	         	+ (end_time.tv_usec - start_time.tv_usec);
+
+	printf(	"\ndone: start_time.tv_sec %d, tv_usec %d, end_time.tv_sec %d, tv_usec %d, delta in usec %d\n", 
+	       	(int)start_time.tv_sec, 
+	       	(int)start_time.tv_usec, 
+	       	(int)end_time.tv_sec, 
+	       	(int)end_time.tv_usec, 
+	       	(int)delta);
+
+	fprintf(stderr,	"\n done: start_time.tv_sec %d, tv_usec %d, end_time.tv_sec %d, tv_usec %d, delta in usec %d\n", 
+	               	(int)start_time.tv_sec, 
+	               	(int)start_time.tv_usec, 
+	               	(int)end_time.tv_sec, 
+	               	(int)end_time.tv_usec, 
+	               	(int)delta);
 	close(sock);
 	return 0;
 }

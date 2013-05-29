@@ -8,12 +8,14 @@ all: echo webserver echo_send_and_receive
 echo:
 
 webserver:
+	$(CC) $(CFLAGS) webserver.c -o webserver -DMY_COMPILE_TIME=$(shell date +%H%M)
 
 echo_send_and_receive:
 
+
 # compile everything and copy the executables to the CF card.
 install: all
-	find . -executable -exec cp {} $(CFCARD) \;
+	find . -executable -exec cp {} $(CFCARD) \;; ls -l $(CFCARD)
 
 clean:
 	rm -f *.o echo webserver echo_send_and_receive

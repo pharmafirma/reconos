@@ -116,12 +116,12 @@ int input_sanitizing(char * input){
 
     printf ("Trying to find '%s' in '%s': ", needle, input);
     ret = regexec(&regex, input, 0, NULL, 0);
-    //if(!ret){
-    //    printf("Match, we found a possible directory traversal attack. \n");
-    //    return 1;
-    //} else if (ret == REG_NOMATCH){
+    if(!ret){
+        printf("Match, we found a possible directory traversal attack. \n");
+        return 1;
+    } else if (ret == REG_NOMATCH){
         printf("No match, everything OK. \n");
-    //} 
+    } 
 
 
     //	Note that, in general, one should also check the input for non-ASCII	//
@@ -265,23 +265,33 @@ int main(int argc, char ** argv) {
 	                                       
 
 
-	char *	pre_recorded_input_message[] = {       	// test	UTF-8	valid	replaces	result
-	      	"GET index.html\r\n",                  	// 0   	no   	yes  	        	/var/www
-	      	"GET ../index.html\r\n",               	// 1   	no   	yes  	        	/var
-	      	"GET ../../index.html\r\n",            	// 2   	no   	yes  	        	/
-	      	"GET \x2e\x2e\x2findex.html\r\n",      	// 3   	no   	yes  	../     	/var
-	      	"GET \x2e./index.html\r\n",            	// 4   	no   	yes  	.       	/var
-	      	"GET \xc0\xae./index.html\r\n",        	// 5   	yes  	no   	.       	/var
-	      	"GET \xe0\x80\xae./index.html\r\n",    	// 6   	yes  	no   	.       	/var
-	      	"GET \xf0\x80\x80\xae./index.html\r\n",	// 7   	yes  	no   	.       	/var
-	      	"GET .\xc0\xae/index.html\r\n",        	// 8   	yes  	no   	 .      	/var
-	      	"GET .\xe0\x80\xae/index.html\r\n",    	// 9   	yes  	no   	 .      	/var
-	      	"GET .\xf0\x80\x80\xae/index.html\r\n",	// 10  	yes  	no   	 .      	/var
-	      	"GET ..\xc0\xafindex.html\r\n",        	// 11  	yes  	no   	  /     	/var
-	      	"GET ..\xe0\x80\xafindex.html\r\n",    	// 12  	yes  	no   	  /     	/var
-	      	"GET ..\xf0\x80\x80\xafindex.html\r\n",	// 13  	yes  	no   	  /     	/var
-	      	"GET \xc3\xa4.html\r\n",               	// 14  	yes  	yes  	ä       	/var/www/ä.html
-	      	"GET ind\xc1\xa5x.html\r\n",           	// 15  	yes  	no   	e       	/var
+	char *	pre_recorded_input_message[] = {                	// test	UTF-8	valid   	replaces	result
+	      	//                                              	       	     	        	        	
+	      	"GET index.html\r\n",                           	// 0   	no   	yes     	        	/var/www
+	      	"GET ../index.html\r\n",                        	// 1   	no   	yes     	        	/var
+	      	"GET ../../index.html\r\n",                     	// 2   	no   	yes     	        	/
+	      	"GET \x2e\x2e\x2findex.html\r\n",               	// 3   	no   	yes     	../     	/var
+	      	"GET \x2e./index.html\r\n",                     	// 4   	no   	yes     	.       	/var
+	      	"GET \xc3\xa4.html\r\n",                        	// 5   	yes  	yes     	ä       	/var/www/ä.html
+	      	"GET \xc0\xae./index.html\r\n",                 	// 6   	yes  	no      	.       	/var
+	      	"GET \xe0\x80\xae./index.html\r\n",             	// 7   	yes  	no      	.       	/var
+	      	"GET \xf0\x80\x80\xae./index.html\r\n",         	// 8   	yes  	no      	.       	/var
+	      	"GET .\xc0\xae/index.html\r\n",                 	// 9   	yes  	no      	 .      	/var
+	      	"GET .\xe0\x80\xae/index.html\r\n",             	// 10  	yes  	no      	 .      	/var
+	      	"GET .\xf0\x80\x80\xae/index.html\r\n",         	// 11  	yes  	no      	 .      	/var
+	      	"GET ..\xc0\xafindex.html\r\n",                 	// 12  	yes  	no      	  /     	/var
+	      	"GET ..\xe0\x80\xafindex.html\r\n",             	// 13  	yes  	no      	  /     	/var
+	      	"GET ..\xf0\x80\x80\xafindex.html\r\n",         	// 14  	yes  	no      	  /     	/var
+	      	"GET ind\xc1\xa5x.html\r\n",                    	// 15  	yes  	no      	e       	/var/www
+	      	"GET .\xe2\x80\x8e./index.html\r\n", // LTR     	// 16  	yes  	?       	.|./    	/var
+	      	"GET ..\xe2\x80\x8e/index.html\r\n", // LTR     	// 17  	yes  	?       	..|/    	/var
+	      	"GET ../\xe2\x80\x8eindex.html\r\n", // LTR     	// 18  	yes  	?       	../|    	/var
+	      	"GET .\xe2\x80\x8f./index.html\r\n", // RTL     	// 19  	yes  	?       	.|./    	/var
+	      	"GET ..\xe2\x80\x8f/index.html\r\n", // RTL     	// 20  	yes  	?       	..|/    	/var
+	      	"GET ../\xe2\x80\x8findex.html\r\n", // RTL     	// 21  	yes  	?       	../|    	/var
+	      	"GET .\xe2\x80\x8e.\xe2\x80\x8f/index.html\r\n",	// 22  	yes  	probably	.|.|/   	/var
+	      	"GET ..\xe2\x80\x8e/\xe2\x80\x8findex.html\r\n",	// 23  	yes  	probably	..|/|   	/var
+	      	"GET ..\xe2\x80\x8f/\xe2\x80\x8eindex.html\r\n",	// 24  	yes  	?       	..|/|   	/var
 
 		// Legend
 		//	test:    	test number (can be chosen via command line argument -t)
@@ -289,6 +299,12 @@ int main(int argc, char ** argv) {
 		//	valid:   	Does this represent a valid UTF-8 (resp ASCII) string?
 		//	replaces:	Which character(s) is/are replaced?
 		//	result:  	The resulting file or directory (referring to the default directory /var/www)
+		// 
+		// Notes to certain attacks:
+		// 16 through 24	contain the control characters LTR (...8e LEFT-TO-RIGHT MARK), 
+		//              	RTL (...8f RIGHT-TO-LEFT MARK) or combinations of them.
+
+
 	};
 
 	// which test to perform?

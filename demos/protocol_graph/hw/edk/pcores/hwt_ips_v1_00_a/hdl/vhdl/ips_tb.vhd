@@ -65,7 +65,9 @@ begin
 	-- FSM which generates packets. 
 
 
-	packet_tx_payload <= (	"01100001", 
+	packet_tx_payload <= (	-- Payload    	SOF 	EOF
+	                      	--("01100001",	"1",	"0")
+	                      	x"FC", 
 	                      	"00001101",
 	                      	"00000101",
 	                      	"00101101",

@@ -115,8 +115,8 @@ begin
 	clk_process :process
 	-- the Clock: 100kHz
 	begin
-		clk <= '0';	wait for 5 us;
 		clk <= '1';	wait for 5 us;
+		clk <= '0';	wait for 5 us;
 	end process;
 
 	memzing: process(clk, rst) is

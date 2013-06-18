@@ -55,21 +55,46 @@ end ips;
 --------------------------------------------------------------
 
 architecture implementation of ips is
+	-- some constants
+	constant	RESET       	:	std_logic	:= '1';
+	constant	PACKET_WIDTH	:	integer  	:= 10;	-- width of data + control bits (sof, eof, etc.)
 
---	signal  	test      	:	std_logic	:= '0'; 
-  	signal  	fifo_full 	:	std_logic	:= '1';
-  	signal  	fifo_empty	:	std_logic	:= '1';
-  	signal  	data_valid	:	std_logic	:= '1'; -- FIXME: hardcoded for the moment
-  	constant	RESET     	:	std_logic	:= '1';
+  	-- signal declarations
+--	signal	test           	:	std_logic	:= '0'; 
+  	signal	fifo_full      	:	std_logic;
+  	signal	fifo_empty     	:	std_logic;
+  	signal	fifo_read      	:	std_logic;
+  	signal	fifo_write     	:	std_logic;
+  	signal	data_valid     	:	std_logic;
+  	signal	fifo_in_packet 	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
+  	signal	fifo_out_packet	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
+
+	-- TODO: declare more signals, especially:
+		-- fifo_read
+		-- result
+		-- content analysers ready
+		-- log data signals, probably some counters...
+
+
+	-- TODO debug
+	signal	foo1	:	std_logic_vector(0 to PACKET_WIDTH-8-2-1);
+	signal	foo2	:	std_logic_vector(0 to PACKET_WIDTH-8-2-1);
+	signal	foo3	:	std_logic_vector(15 downto 0);
+	signal	foo4	:	std_logic_vector(15 downto 0);
+
+
+
+
+
 
 
 	-- include components
 
 	component fifo32 is
 	generic (
-		C_FIFO32_WORD_WIDTH       	:	integer	:= 8;
+		C_FIFO32_WORD_WIDTH       	:	integer	:= PACKET_WIDTH;
 		C_FIFO32_DATA_SIGNAL_WIDTH	:	integer	:= 16;
-		C_FIFO32_DEPTH            	:	integer := 16
+		C_FIFO32_DEPTH            	:	integer := 4
 	);
 		port (
 		Rst           	:	in	std_logic;
@@ -98,17 +123,46 @@ architecture implementation of ips is
 		);
 	end component;
 
+	-- component content_analysers is
+	--		TODO
+	-- end component
 
 
-
-
+--				########  ########  ######   #### ##    ## 
+--				##     ## ##       ##    ##   ##  ###   ## 
+--				##     ## ##       ##         ##  ####  ## 
+--				########  ######   ##   ####  ##  ## ## ## 
+--				##     ## ##       ##    ##   ##  ##  #### 
+--				##     ## ##       ##    ##   ##  ##   ### 
+--				########  ########  ######   #### ##    ## 
 begin
+
+	-- TODO some hardcoded debug assignments
+	foo1      	<=	(others => '0');
+	data_valid	<=	'1'; -- = fifo_write.
+	fifo_read 	<=	'1'; 
+
+
+	-- define a "packet" as data, sof and eof signals.
+	-- packets will not be sent directly, but be stored in a fifo buffer until all checks are done.
+	fifo_in_packet(7 downto 0)            	<=	rx_ll_data;
+	fifo_in_packet(8)                     	<=	rx_ll_sof;
+	fifo_in_packet(9)                     	<=	rx_ll_eof;
+	--fifo_in_packet(10 to PACKET_WIDTH-1)	<=	foo1;
+	tx_ll_data                            	<=	fifo_out_packet(7 downto 0);
+	tx_ll_sof                             	<=	fifo_out_packet(8);
+	tx_ll_eof                             	<=	fifo_out_packet(9);
+	--foo2; 
+	fifo_write	<=	data_valid;
+
+
+
   	
 --	test         	<=                                 	not rx_ll_src_rdy;
   	rx_ll_dst_rdy	<= '0' when rst = RESET else       	'1';
-  	tx_ll_sof    	<= '0' when rst = RESET else       	rx_ll_sof;
-  	tx_ll_eof    	<= '0' when rst = RESET else       	rx_ll_eof;
-  	tx_ll_data   	<= "00000000" when rst = RESET else	rx_ll_data;
+--	tx_ll_sof    	<= '0' when rst = RESET else       	rx_ll_sof;
+--	tx_ll_eof    	<= '0' when rst = RESET else       	rx_ll_eof;
+--	tx_ll_data   	<= "00000000" when rst = RESET else	rx_ll_data;
   	tx_ll_src_rdy	<= '0' when rst = RESET else       	'1';
 --	rx_ll_dst_rdy	<= '0' when rst = '1' else         	'1';
 --	tx_ll_sof    	<= '0' when rst = '1' else         	rx_ll_sof;
@@ -117,21 +171,55 @@ begin
 --	tx_ll_src_rdy	<= '0' when rst = '1' else         	'1';
 
 
-	-- instatiate 1 fifo component
-	fifo_inst : fifo32
+	-- TODO content analysers instance goes here
+
+
+	-- instatiate first FIFO for the packets
+	packet_fifo : fifo32
 	port map(
 		Rst            	=> rst, 
 		FIFO32_S_Clk   	=> clk,
 		FIFO32_M_Clk   	=> clk,
-		FIFO32_S_Data  	=> tx_ll_data,
-		FIFO32_M_Data  	=> rx_ll_data,
-		--FIFO32_S_Fill	=> ; -- unused, we need full and empty only.
-		--FIFO32_M_Rem 	=> ; -- unused, we need full and empty only.
+		FIFO32_S_Data  	=> fifo_out_packet, --tx_ll_data & tx_ll_sof & tx_ll_eof & foo1, -- packet vector
+		FIFO32_M_Data  	=> fifo_in_packet, --rx_ll_data & rx_ll_sof & rx_ll_eof & foo2, -- packet vector
+		--FIFO32_S_Fill	=> , -- unused, we need full and empty only.
+		--FIFO32_M_Rem 	=> , -- unused, we need full and empty only.
+		FIFO32_S_Fill  	=> foo3, -- TODO leDebug
+		FIFO32_M_Rem   	=> foo4, -- TODO leDebug
 		FIFO32_S_Full  	=> fifo_full, 
 		FIFO32_M_Empty 	=> fifo_empty, 
-		FIFO32_S_Rd    	=> '1',
-		FIFO32_M_Wr    	=> data_valid
+		FIFO32_S_Rd    	=> fifo_read, 
+		FIFO32_M_Wr    	=> fifo_write
 	);
+
+
+	-- instantiate a second FIFO for the results 
+	-- results_fifo : fifo32
+	-- -- TODO
+	-- port map(
+	--	Rst            	=> rst, 
+	--	FIFO32_S_Clk   	=> clk,
+	--	FIFO32_M_Clk   	=> clk,
+	--	FIFO32_S_Data  	=> 
+	--	FIFO32_M_Data  	=> 
+	--	--FIFO32_S_Fill	=> , -- unused, we need full and empty only.
+	--	--FIFO32_M_Rem 	=> , -- unused, we need full and empty only.
+	--	FIFO32_S_Full  	=> , -- probably all unused, because this FIFO can not get full as long as the data_fifo is not full
+	--	FIFO32_M_Empty 	=> , -- TODO think about this
+	--	FIFO32_S_Rd    	=> 
+	--	FIFO32_M_Wr    	=> 
+	-- );
+
+
+	-- TODO "sender control" goes here
+		-- process which checks results and sends data
+
+
+	-- TODO "receiver control" goes here
+		-- process which receives data and generates data_valid signal
+
+
+	-- TODO all the h2s logging stuff.
 
 
 end architecture;

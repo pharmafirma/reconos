@@ -61,6 +61,14 @@ architecture implementation of ips is
 	constant	RESET       	:	std_logic	:= '1';
 	constant	PACKET_WIDTH	:	integer  	:= 10;	-- width of data + control bits (sof, eof, etc.)
 
+
+  	--			 ######  ####  ######   ##    ##    ###    ## 
+  	--			##    ##  ##  ##    ##  ###   ##   ## ##   ##
+  	--			##        ##  ##        ####  ##  ##   ##  ## 
+  	--			 ######   ##  ##   #### ## ## ## ##     ## ## 
+  	--			      ##  ##  ##    ##  ##  #### ######### ## 
+  	--			##    ##  ##  ##    ##  ##   ### ##     ## ## 
+  	--			 ######  ####  ######   ##    ## ##     ## ######## 
   	-- signal declarations
 --	signal	test           	:	std_logic	:= '0'; 
   	signal	fifo_full      	:	std_logic;
@@ -70,6 +78,18 @@ architecture implementation of ips is
   	signal	data_valid     	:	std_logic;
   	signal	fifo_in_packet 	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
   	signal	fifo_out_packet	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
+
+	-- sender control states
+	type  	sendercontrol_type	is	( -- see sendercontrol process for an explanation of all states.
+	      	                  	  	idle, 
+	      	                  	  	working_checkresult, 
+	      	                  	  	working_droppacket, 
+	      	                  	  	working_send_stalled, 
+	      	                  	  	working_send_nextbyte); 
+	signal	sender_state      	: 	sendercontrol_type;
+	signal	sender_next_state 	: 	sendercontrol_type;
+	signal	sender_last_state 	: 	sendercontrol_type;
+
 
 	-- TODO: declare more signals, especially:
 		-- fifo_read
@@ -213,8 +233,98 @@ begin
 	-- );
 
 
-	-- TODO "sender control" goes here
-		-- process which checks results and sends data
+
+	-- "sender control" state machine.
+	-- Apart from the actual content analysis, this process is the most important of the IPS entity.
+	-- It controls the entire data flow, i.e. it checks results and sends or drops packets.
+
+	-- State hierarchy of sender control:
+	-- idle          	(start here)
+	--               	FIFO is empty, nothing to do.
+	-- working_      	(superstate)
+	--               	FIFO is not empty. There is something to do...
+	--    checkresult	(start here within superstate, 1st time only)
+	--               	Sender does not know analysis result yet. Wait...
+	--    droppacket 	Result is known and stated that the packet is evil.
+	--               	Read next byte from FIFO and drop it, until EOF.
+	--    send_      	(superstate)
+	--               	Result is known and stated that the packet is fine.
+	--               	i.e. we need to send it, until EOF.
+	--       stalled 	(start here within superstate)
+	--               	Reveicer is not ready or unknown.
+	--               	check if receiver is ready.
+	--       nextbyte	Reveiver is ready.
+	--               	Read next byte from FIFO and send it.
+
+	sendercontrol_memzing : process(clk, rst)
+	begin
+		if (reset = RESET) then
+			sender_state <= idle;
+		elsif (rising_edge(clk)) then
+			sender_last_state <= sender_state;
+			-- TODO mach das nur, wenn es von einem Working State in den idle geht
+			sender_state <= sender_next_state;
+		end if;
+	end process;
+
+	sendercontrol_memless : process(sender_state) -- <-- TODO öpdeit sensitivity list
+	begin
+		case sender_state is
+			when idle =>
+				if( bla )
+					foo
+				else
+					bar
+				end if; 
+
+			when (working_checkresult or working_droppacket or working_send_stalled or working_send_nextbyte) => 
+			--	"working_" superstate
+			  	if( bla )
+			  		foo
+			  	else
+			  		bar
+			  	end if; 
+
+			when working_checkresult =>
+				if( bla )
+					foo
+				else
+					bar
+				end if; 
+
+			when working_droppacket =>
+				if( bla )
+					foo
+				else
+					bar
+				end if; 
+
+			when (working_send_stalled or working_send_nextbyte) => 
+			--	"working_send_" superstate
+			  	if( bla )
+			  		foo
+			  	else
+			  		bar
+			  	end if; 
+
+			when working_send_stalled =>
+				if( bla )
+					foo
+				else
+					bar
+				end if; 
+
+			when working_send_nextbyte =>
+				if( bla )
+					foo
+				else
+					bar
+				end if; 
+
+		end case;
+	end process; -- end sendercontrol_memless
+
+
 
 
 	-- TODO "receiver control" goes here

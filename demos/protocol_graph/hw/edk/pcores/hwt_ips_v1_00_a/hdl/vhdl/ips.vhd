@@ -36,6 +36,8 @@ entity ips is
 --		sender     		: std_logic
 --	);
   	port (
+	   debug_fifo_read : in 	std_logic;
+	   debug_fifo_write : in 	std_logic;	
   		rst          	:	in 	std_logic;
   		clk          	:	in 	std_logic;
   		rx_ll_sof    	:	in 	std_logic;
@@ -140,7 +142,7 @@ begin
 	-- TODO some hardcoded debug assignments
 	foo1      	<=	(others => '0');
 	data_valid	<=	'1'; -- = fifo_write.
-	fifo_read 	<=	'1'; 
+	fifo_read 	<=	debug_fifo_read; --'1'; 
 
 
 	-- define a "packet" as data, sof and eof signals.
@@ -153,7 +155,7 @@ begin
 	tx_ll_sof                             	<=	fifo_out_packet(8);
 	tx_ll_eof                             	<=	fifo_out_packet(9);
 	--foo2; 
-	fifo_write	<=	data_valid;
+	fifo_write	<=	debug_fifo_write; -- data_valid;
 
 
 

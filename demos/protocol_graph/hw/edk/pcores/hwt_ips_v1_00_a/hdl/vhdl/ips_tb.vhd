@@ -35,11 +35,16 @@ architecture RTL of ips_tb is
 	signal  	clk                    	: std_logic;
 	signal  	rst                    	: std_logic;
 	constant	RESET                  	: std_logic := '1';
+	
+	signal	debug_fifo_read   :  	std_logic;
+	signal   debug_fifo_write  :  	std_logic;
 
 	
 	-- the TB has only one component, which ist the entity to be tested (model under test, MUT):
 	component ips is
 		port (
+			debug_fifo_read  : in 	std_logic;
+	      debug_fifo_write : in 	std_logic;
 			rst          	:	in 	std_logic;
 			clk          	:	in 	std_logic;
 			rx_ll_sof    	:	in 	std_logic;
@@ -130,10 +135,27 @@ begin
 			packet_state	<= packet_state_next;
 	    end if;
 	end process;
+	
+	fifo_contrl: process(clk, rst) is
+	-- FSM state transition
+	begin
+	    if rst = RESET then
+			debug_fifo_read  <= '0';
+			debug_fifo_write <= '0';
+	    elsif rising_edge(clk) then
+			debug_fifo_write <= '1';
+			debug_fifo_read <= '1';
+			if (debug_fifo_write = '0') then
+				debug_fifo_read <= '0';
+			end if;
+	    end if;
+	end process;
 
 	-- instatiate 1 ips component
 	ips_inst : ips 
 	port map(
+	   debug_fifo_read         =>	debug_fifo_read,
+	   debug_fifo_write        =>	debug_fifo_write,
 		rst                    	=>	rst,
 		clk                    	=>	clk,
 		-- what the TB sends...	is what the MUT reveives

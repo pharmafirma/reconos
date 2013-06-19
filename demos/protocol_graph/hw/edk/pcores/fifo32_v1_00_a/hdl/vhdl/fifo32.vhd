@@ -52,7 +52,7 @@ begin
 	FIFO32_S_Full 	<= '1'          	when remainder = (fill'range=>'0')	else '0';
 	FIFO32_M_Empty	<= '1'          	when fill = (fill'range=>'0')     	else '0';
 	
-	-- write process
+	-- write process 
 	process(FIFO32_M_Clk, Rst)
 	begin
 		if Rst = '1' then

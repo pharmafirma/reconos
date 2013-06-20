@@ -72,13 +72,47 @@ begin
 
 	packet_tx_payload <= (	-- Payload    	SOF 	EOF
 	                      	--("01100001",	"1",	"0")
-	                      	x"FC", 
-	                      	"00001101",
-	                      	"00000101",
-	                      	"00101101",
-	                      	"00101101",
-	                      	"00001101",
-	                      	"11111111",
+	                      	x"de", -- four dead beef :-(
+	                      	x"ad", 
+	                      	x"be", 
+	                      	x"ef", 
+	                      	x"00", 
+	                      	x"de", 
+	                      	x"ad", 
+	                      	x"be", 
+	                      	x"ef", 
+	                      	x"00", 
+	                      	x"de", 
+	                      	x"ad", 
+	                      	x"be", 
+	                      	x"ef", 
+	                      	x"00", 
+	                      	x"de", 
+	                      	x"ad", 
+	                      	x"be", 
+	                      	x"ef", 
+	                      	x"00", 
+	                      	x"11", -- and a counter
+	                      	x"22", 
+	                      	x"33", 
+	                      	x"44", 
+	                      	x"55", 
+	                      	x"66", 
+	                      	x"77", 
+	                      	x"88", 
+	                      	x"99", 
+	                      	x"aa", 
+	                      	x"bb", 
+	                      	x"cc", 
+	                      	x"dd", 
+	                      	x"ee", 
+	                      	x"ff", 
+	                      	-- "00001101",
+	                      	-- "00000101",
+	                      	-- "00101101",
+	                      	-- "00101101",
+	                      	-- "00001101",
+	                      	-- "11111111",
 	                      	others => "00000000"
 	);
 
@@ -137,19 +171,25 @@ begin
 	end process;
 	
 	fifo_contrl: process(clk, rst) is
-	-- FSM state transition
 	begin
 	    if rst = RESET then
-			debug_fifo_read  <= '0';
+			--debug_fifo_read  <= '0';
 			debug_fifo_write <= '0';
 	    elsif rising_edge(clk) then
 			debug_fifo_write <= '1';
-			debug_fifo_read <= '1';
-			if (debug_fifo_write = '0') then
-				debug_fifo_read <= '0';
-			end if;
+			--debug_fifo_read <= '1'; -- see process below
+			-- if (debug_fifo_write = '0') then
+			--	debug_fifo_read <= '0';
+			-- end if;
 	    end if;
 	end process;
+
+	process
+	begin
+		debug_fifo_read	<= '1';	wait for 55 us;
+		debug_fifo_read	<= '0';	wait for 10 us;
+	end process;
+
 
 	-- instatiate 1 ips component
 	ips_inst : ips 

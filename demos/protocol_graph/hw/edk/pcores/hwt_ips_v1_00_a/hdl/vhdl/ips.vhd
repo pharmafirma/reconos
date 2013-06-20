@@ -36,20 +36,21 @@ entity ips is
 --		sender     		: std_logic
 --	);
   	port (
-	   debug_fifo_read : in 	std_logic;
-	   debug_fifo_write : in 	std_logic;	
-  		rst          	:	in 	std_logic;
-  		clk          	:	in 	std_logic;
-  		rx_ll_sof    	:	in 	std_logic;
-  		rx_ll_eof    	:	in 	std_logic;
-  		rx_ll_data   	:	in 	std_logic_vector(7 downto 0);
-  		rx_ll_src_rdy	:	in 	std_logic;
-  		rx_ll_dst_rdy	:	out	std_logic;	
-  		tx_ll_sof    	:	out	std_logic;
-  		tx_ll_eof    	:	out	std_logic;
-  		tx_ll_data   	:	out	std_logic_vector(7 downto 0);
-  		tx_ll_src_rdy	:	out	std_logic;
-  		tx_ll_dst_rdy	:	in 	std_logic
+  		debug_fifo_read 	:	in 	std_logic;
+  		debug_fifo_write	:	in 	std_logic;
+  		--debug_result  	:	in 	result_type; 
+  		rst             	:	in 	std_logic;
+  		clk             	:	in 	std_logic;
+  		rx_ll_sof       	:	in 	std_logic;
+  		rx_ll_eof       	:	in 	std_logic;
+  		rx_ll_data      	:	in 	std_logic_vector(7 downto 0);
+  		rx_ll_src_rdy   	:	in 	std_logic;
+  		rx_ll_dst_rdy   	:	out	std_logic;	
+  		tx_ll_sof       	:	out	std_logic;
+  		tx_ll_eof       	:	out	std_logic;
+  		tx_ll_data      	:	out	std_logic_vector(7 downto 0);
+  		tx_ll_src_rdy   	:	out	std_logic;
+  		tx_ll_dst_rdy   	:	in 	std_logic
   	);
 
 end ips;
@@ -70,25 +71,35 @@ architecture implementation of ips is
   	--			##    ##  ##  ##    ##  ##   ### ##     ## ## 
   	--			 ######  ####  ######   ##    ## ##     ## ######## 
   	-- signal declarations
---	signal	test           	:	std_logic	:= '0'; 
-  	signal	fifo_full      	:	std_logic;
-  	signal	fifo_empty     	:	std_logic;
-  	signal	fifo_read      	:	std_logic;
-  	signal	fifo_write     	:	std_logic;
-  	signal	data_valid     	:	std_logic;
-  	signal	fifo_in_packet 	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
-  	signal	fifo_out_packet	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
+--	signal  	test            	:	std_logic	:= '0'; 
+  	signal  	fifo_full       	:	std_logic;
+  	signal  	fifo_empty      	:	std_logic;
+  	--signal	fifo_read_enable	:	std_logic; -- only ready when the fifo is not empty.
+  	signal  	fifo_read       	:	std_logic;
+  	signal  	fifo_write      	:	std_logic;
+  	signal  	data_valid      	:	std_logic;
+  	signal  	fifo_in_packet  	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
+  	signal  	fifo_out_packet 	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
 
 	-- sender control states
 	type  	sendercontrol_type	is	( -- see sendercontrol process for an explanation of all states.
 	      	                  	  	idle, 
-	      	                  	  	working_checkresult, 
-	      	                  	  	working_droppacket, 
-	      	                  	  	working_send_stalled, 
-	      	                  	  	working_send_nextbyte); 
+	      	                  	  	-- working_checkresult, 
+	      	                  	  	-- working_droppacket, 
+	      	                  	  	-- working_send_stalled, 
+	      	                  	  	-- working_send_nextbyte); 
+	      	                  	  	--working_checkresult, -- abgeschafft.
+	      	                  	  	drop, 
+	      	                  	  	send_stalled, 
+	      	                  	  	send_nextbyte); 
 	signal	sender_state      	: 	sendercontrol_type;
 	signal	sender_next_state 	: 	sendercontrol_type;
 	signal	sender_last_state 	: 	sendercontrol_type;
+	type  	result_type       	is	( -- possible states of a packet.
+	      	                  	unknown,
+	      	                  	good, 
+	      	                  	evil); 
+	signal	result            	:	result_type; -- result of the checks. 
 
 
 	-- TODO: declare more signals, especially:
@@ -238,7 +249,7 @@ begin
 	-- Apart from the actual content analysis, this process is the most important of the IPS entity.
 	-- It controls the entire data flow, i.e. it checks results and sends or drops packets.
 
-	-- State hierarchy of sender control:
+	-- State hierarchy of sender control: TODO update me.
 	-- idle          	(start here)
 	--               	FIFO is empty, nothing to do.
 	-- working_      	(superstate)
@@ -271,35 +282,35 @@ begin
 	begin
 		case sender_state is
 			when idle =>
+				if(  )
+					foo
+				else
+					bar
+				end if; 
+
+			-- when (working_checkresult or working_droppacket or working_send_stalled or working_send_nextbyte) => 
+			-- --	"working_" superstate
+			--   	if( bla )
+			--   		foo
+			--   	else
+			--   		bar
+			--   	end if; 
+
+			-- when working_checkresult =>
+			--	if( bla )
+			--		foo
+			--	else
+			--		bar
+			--	end if; 
+
+			when drop =>
 				if( bla )
 					foo
 				else
 					bar
 				end if; 
 
-			when (working_checkresult or working_droppacket or working_send_stalled or working_send_nextbyte) => 
-			--	"working_" superstate
-			  	if( bla )
-			  		foo
-			  	else
-			  		bar
-			  	end if; 
-
-			when working_checkresult =>
-				if( bla )
-					foo
-				else
-					bar
-				end if; 
-
-			when working_droppacket =>
-				if( bla )
-					foo
-				else
-					bar
-				end if; 
-
-			when (working_send_stalled or working_send_nextbyte) => 
+			when (send_stalled or send_nextbyte) => 
 			--	"working_send_" superstate
 			  	if( bla )
 			  		foo
@@ -307,14 +318,14 @@ begin
 			  		bar
 			  	end if; 
 
-			when working_send_stalled =>
+			when send_stalled =>
 				if( bla )
 					foo
 				else
 					bar
 				end if; 
 
-			when working_send_nextbyte =>
+			when send_nextbyte =>
 				if( bla )
 					foo
 				else

@@ -167,7 +167,8 @@ cp reconos_v3/designs/ml605_linux_13.3/device_tree.dts linux-2.6-xlnx/arch/micro
 
 Compile the linux kernel:
 
-  cd linux-2.6-xlnx make CROSS_COMPILE=microblaze-unknown-linux-gnu- ARCH=microblaze -j8 simpleImage.device_tree
+  cd linux-2.6-xlnx 
+  make CROSS_COMPILE=microblaze-unknown-linux-gnu- ARCH=microblaze -j8 simpleImage.device_tree
 
 Set up the NFS Server with the Root Filesystem. Install the xilinx usb calbe
 driver as described.

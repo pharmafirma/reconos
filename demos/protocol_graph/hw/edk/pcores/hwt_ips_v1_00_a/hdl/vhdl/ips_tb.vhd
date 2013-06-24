@@ -36,15 +36,23 @@ architecture RTL of ips_tb is
 	signal  	rst                    	: std_logic;
 	constant	RESET                  	: std_logic := '1';
 	
-	signal	debug_fifo_read   :  	std_logic;
-	signal   debug_fifo_write  :  	std_logic;
+	-- some debug signals
+	signal                           	debug_fifo_read   :	std_logic;
+	signal   debug_fifo_write  :     	std_logic;
+	signal   debug_severe_error  :   	std_logic;
+	signal   debug_result_goodsend  :	std_logic;
+	signal   debug_result_evildrop  :	std_logic;
 
 	
 	-- the TB has only one component, which ist the entity to be tested (model under test, MUT):
 	component ips is
 		port (
-			debug_fifo_read  : in 	std_logic;
-	      debug_fifo_write : in 	std_logic;
+			debug_fifo_read      	:	in 	std_logic;
+			debug_fifo_write     	:	in 	std_logic;
+			debug_severe_error   	:	out	std_logic; 
+			debug_result_goodsend	:	in 	std_logic; 
+			debug_result_evildrop	:	in 	std_logic; 
+
 			rst          	:	in 	std_logic;
 			clk          	:	in 	std_logic;
 			rx_ll_sof    	:	in 	std_logic;
@@ -129,6 +137,11 @@ begin
 		tx_ll_data       	<= packet_tx_payload(cur_len);
 		cur_len_next     	<= cur_len;
 		packet_state_next	<= packet_state;
+
+		debug_result_goodsend <= '0';
+		debug_result_evildrop <= '0';
+
+
 		case packet_state is
 		when P_STATE_INIT  => 
 			tx_ll_sof	<= '1';
@@ -138,8 +151,10 @@ begin
 			end if;
 		when P_STATE_SEND  => 
 			if cur_len = packet_len then
-				tx_ll_eof        	<= '1';
-				packet_state_next	<= P_STATE_INIT;
+				tx_ll_eof              	<= '1';
+				debug_result_goodsend  	<= '1';
+				--debug_result_evildrop	<= '1';
+				packet_state_next      	<= P_STATE_INIT;
 			end if;
 			if tx_ll_dst_rdy = '1' then
 				cur_len_next        	<= cur_len + 1;
@@ -184,18 +199,22 @@ begin
 	    end if;
 	end process;
 
-	process
-	begin
-		debug_fifo_read	<= '1';	wait for 55 us;
-		debug_fifo_read	<= '0';	wait for 10 us;
-	end process;
+	-- process
+	-- begin
+	--	debug_fifo_read	<= '1';	wait for 55 us;
+	--	debug_fifo_read	<= '0';	wait for 10 us;
+	-- end process;
 
 
 	-- instatiate 1 ips component
 	ips_inst : ips 
 	port map(
-	   debug_fifo_read         =>	debug_fifo_read,
-	   debug_fifo_write        =>	debug_fifo_write,
+	   debug_fifo_read         =>        	debug_fifo_read,
+	   debug_fifo_write        =>        	debug_fifo_write,
+	debug_severe_error         =>        	debug_severe_error,
+	debug_result_goodsend            =>  		debug_result_goodsend,
+	debug_result_evildrop              =>		debug_result_evildrop, 
+
 		rst                    	=>	rst,
 		clk                    	=>	clk,
 		-- what the TB sends...	is what the MUT reveives

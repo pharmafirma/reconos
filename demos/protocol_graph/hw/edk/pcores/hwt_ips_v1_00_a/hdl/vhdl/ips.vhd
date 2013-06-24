@@ -36,22 +36,23 @@ entity ips is
 --		sender     		: std_logic
 --	);
   	port (
-  		debug_fifo_read   	:	in 	std_logic;
-  		debug_fifo_write  	:	in 	std_logic;
-  		debug_severe_error	:	out	std_logic; 
-  		--debug_result    	:	in 	result_type; 
-  		rst               	:	in 	std_logic;
-  		clk               	:	in 	std_logic;
-  		rx_ll_sof         	:	in 	std_logic;
-  		rx_ll_eof         	:	in 	std_logic;
-  		rx_ll_data        	:	in 	std_logic_vector(7 downto 0);
-  		rx_ll_src_rdy     	:	in 	std_logic;
-  		rx_ll_dst_rdy     	:	out	std_logic;	
-  		tx_ll_sof         	:	out	std_logic;
-  		tx_ll_eof         	:	out	std_logic;
-  		tx_ll_data        	:	out	std_logic_vector(7 downto 0);
-  		tx_ll_src_rdy     	:	out	std_logic;
-  		tx_ll_dst_rdy     	:	in 	std_logic
+  		debug_fifo_read      	:	in 	std_logic;
+  		debug_fifo_write     	:	in 	std_logic;
+  		debug_severe_error   	:	out	std_logic; 
+  		debug_result_goodsend	:	in 	std_logic; 
+  		debug_result_evildrop	:	in 	std_logic; 
+  		rst                  	:	in 	std_logic;
+  		clk                  	:	in 	std_logic;
+  		rx_ll_sof            	:	in 	std_logic;
+  		rx_ll_eof            	:	in 	std_logic;
+  		rx_ll_data           	:	in 	std_logic_vector(7 downto 0);
+  		rx_ll_src_rdy        	:	in 	std_logic;
+  		rx_ll_dst_rdy        	:	out	std_logic;	
+  		tx_ll_sof            	:	out	std_logic;
+  		tx_ll_eof            	:	out	std_logic;
+  		tx_ll_data           	:	out	std_logic_vector(7 downto 0);
+  		tx_ll_src_rdy        	:	out	std_logic;
+  		tx_ll_dst_rdy        	:	in 	std_logic
   	);
 
 end ips;
@@ -130,25 +131,27 @@ architecture implementation of ips is
 
 	-- include components
 
-	component fifo32_packets is
+	component fifo32 is
 	generic (
-		C_FIFO32_WORD_WIDTH       	:	integer	:= PACKET_WIDTH;
-		C_FIFO32_DATA_SIGNAL_WIDTH	:	integer	:= 16;
-		C_FIFO32_DEPTH            	:	integer := 4
+		C_FIFO32_WORD_WIDTH         	:	integer	:= PACKET_WIDTH;
+		C_FIFO32_DEPTH              	:	integer := 4;
+		C_FIFO32_CONTROLSIGNAL_WIDTH	:	integer	:= 16;
+		CLOG2_FIFO32_DEPTH          	:	integer := 4;
+		C_FIFO32_SAFE_READ_WRITE    	:	boolean	:= true
 	);
 		port (
 		Rst           	:	in	std_logic;
 		-- ..._M_...  	=	input of the FIFO.
 		-- ..._S_...  	=	output of the FIFO.
-		FIFO32_S_Clk  	:	in 	std_logic;                                              	-- clock and data signals
-		FIFO32_M_Clk  	:	in 	std_logic;                                              	
-		FIFO32_S_Data 	:	out	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);       	
-		FIFO32_M_Data 	:	in 	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);       	
-		FIFO32_S_Fill 	:	out	std_logic_vector(C_FIFO32_DATA_SIGNAL_WIDTH-1 downto 0);	-- # elements in the FIFO. 0 means FIFO is empty.
-		FIFO32_M_Rem  	:	out	std_logic_vector(C_FIFO32_DATA_SIGNAL_WIDTH-1 downto 0);	-- remaining free space. 0 means FIFO is full.
-		FIFO32_S_Full 	:	out	std_logic;                                              	-- FIFO full signal
-		FIFO32_M_Empty	:	out	std_logic;                                              	-- FIFO empty signal
-		FIFO32_S_Rd   	:	in 	std_logic;                                              	-- output data ready
+		FIFO32_S_Clk  	:	in 	std_logic;                                                	-- clock and data signals
+		FIFO32_M_Clk  	:	in 	std_logic;                                                	
+		FIFO32_S_Data 	:	out	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);         	
+		FIFO32_M_Data 	:	in 	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);         	
+		FIFO32_S_Fill 	:	out	std_logic_vector(C_FIFO32_CONTROLSIGNAL_WIDTH-1 downto 0);	-- # elements in the FIFO. 0 means FIFO is empty.
+		FIFO32_M_Rem  	:	out	std_logic_vector(C_FIFO32_CONTROLSIGNAL_WIDTH-1 downto 0);	-- remaining free space. 0 means FIFO is full.
+		FIFO32_S_Full 	:	out	std_logic;                                                	-- FIFO full signal
+		FIFO32_M_Empty	:	out	std_logic;                                                	-- FIFO empty signal
+		FIFO32_S_Rd   	:	in 	std_logic;                                                	-- output data ready
 		FIFO32_M_Wr   	:	in 	std_logic   
 		-- old and probably not working.
 		-- rst          	: in 	std_logic;
@@ -163,29 +166,29 @@ architecture implementation of ips is
 		);
 	end component;
 
-		component fifo32_results is
-	generic (
-		C_FIFO32_WORD_WIDTH       	:	integer	:= RESULT_WIDTH;
-		C_FIFO32_DATA_SIGNAL_WIDTH	:	integer	:= 16;
-		C_FIFO32_DEPTH            	:	integer := 4
-	);
-		port (
-		Rst           	:	in	std_logic;
-		-- ..._M_...  	=	input of the FIFO.
-		-- ..._S_...  	=	output of the FIFO.
-		FIFO32_S_Clk  	:	in 	std_logic;                                              	-- clock and data signals
-		FIFO32_M_Clk  	:	in 	std_logic;                                              	
-		FIFO32_S_Data 	:	out	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);       	
-		FIFO32_M_Data 	:	in 	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);       	
-		FIFO32_S_Fill 	:	out	std_logic_vector(C_FIFO32_DATA_SIGNAL_WIDTH-1 downto 0);	-- # elements in the FIFO. 0 means FIFO is empty.
-		FIFO32_M_Rem  	:	out	std_logic_vector(C_FIFO32_DATA_SIGNAL_WIDTH-1 downto 0);	-- remaining free space. 0 means FIFO is full.
-		FIFO32_S_Full 	:	out	std_logic;                                              	-- FIFO full signal
-		FIFO32_M_Empty	:	out	std_logic;                                              	-- FIFO empty signal
-		FIFO32_S_Rd   	:	in 	std_logic;                                              	-- output data ready
-		FIFO32_M_Wr   	:	in 	std_logic   
+	-- component fifo32_results is
+	-- generic (
+	--	C_FIFO32_WORD_WIDTH         	:	integer	:= RESULT_WIDTH;
+	--	C_FIFO32_CONTROLSIGNAL_WIDTH	:	integer	:= 16;
+	--	C_FIFO32_DEPTH              	:	integer := 4
+	-- );
+	--	port (
+	--	Rst           	:	in	std_logic;
+	--	-- ..._M_...  	=	input of the FIFO.
+	--	-- ..._S_...  	=	output of the FIFO.
+	--	FIFO32_S_Clk  	:	in 	std_logic;                                                	-- clock and data signals
+	--	FIFO32_M_Clk  	:	in 	std_logic;                                                	
+	--	FIFO32_S_Data 	:	out	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);         	
+	--	FIFO32_M_Data 	:	in 	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);         	
+	--	FIFO32_S_Fill 	:	out	std_logic_vector(C_FIFO32_CONTROLSIGNAL_WIDTH-1 downto 0);	-- # elements in the FIFO. 0 means FIFO is empty.
+	--	FIFO32_M_Rem  	:	out	std_logic_vector(C_FIFO32_CONTROLSIGNAL_WIDTH-1 downto 0);	-- remaining free space. 0 means FIFO is full.
+	--	FIFO32_S_Full 	:	out	std_logic;                                                	-- FIFO full signal
+	--	FIFO32_M_Empty	:	out	std_logic;                                                	-- FIFO empty signal
+	--	FIFO32_S_Rd   	:	in 	std_logic;                                                	-- output data ready
+	--	FIFO32_M_Wr   	:	in 	std_logic   
 
-		);
-	end component;
+	--	);
+	-- end component;
 
 	-- component content_analysers is
 	--		TODO
@@ -202,21 +205,22 @@ architecture implementation of ips is
 begin
 
   	-- TODO remove these hardcoded debug assignments
-  	--foo1          	<=                                 	(others => '0');
-  	data_valid      	<=                                 	'1'; -- = packet_fifo_write.
-  	packet_fifo_read	<=                                 	debug_fifo_read; --'1'; 
---	test            	<=                                 	not rx_ll_src_rdy;
-  	rx_ll_dst_rdy   	<= '0' when rst = RESET else       	'1';
---	tx_ll_sof       	<= '0' when rst = RESET else       	rx_ll_sof;
---	tx_ll_eof       	<= '0' when rst = RESET else       	rx_ll_eof;
---	tx_ll_data      	<= "00000000" when rst = RESET else	rx_ll_data;
-  	tx_ll_src_rdy   	<= '0' when rst = RESET else       	'1';
---	rx_ll_dst_rdy   	<= '0' when rst = '1' else         	'1';
---	tx_ll_sof       	<= '0' when rst = '1' else         	rx_ll_sof;
---	tx_ll_eof       	<= '0' when rst = '1' else         	rx_ll_eof;
---	tx_ll_data      	<= "00000000" when rst = '1' else  	rx_ll_data;
---	tx_ll_src_rdy   	<= '0' when rst = '1' else         	'1';
-
+  	--foo1           	<=                                 	(others => '0');
+  	data_valid       	<=                                 	'1'; -- = packet_fifo_write.
+--	packet_fifo_read 	<=                                 	debug_fifo_read; --'1'; 
+--	test             	<=                                 	not rx_ll_src_rdy;
+  	rx_ll_dst_rdy    	<= '0' when rst = RESET else       	'1';
+--	tx_ll_sof        	<= '0' when rst = RESET else       	rx_ll_sof;
+--	tx_ll_eof        	<= '0' when rst = RESET else       	rx_ll_eof;
+--	tx_ll_data       	<= "00000000" when rst = RESET else	rx_ll_data;
+  	tx_ll_src_rdy    	<= '0' when rst = RESET else       	'1';
+--	rx_ll_dst_rdy    	<= '0' when rst = '1' else         	'1';
+--	tx_ll_sof        	<= '0' when rst = '1' else         	rx_ll_sof;
+--	tx_ll_eof        	<= '0' when rst = '1' else         	rx_ll_eof;
+--	tx_ll_data       	<= "00000000" when rst = '1' else  	rx_ll_data;
+--	tx_ll_src_rdy    	<= '0' when rst = '1' else         	'1';
+--	result_fifo_empty	<= '0';                            	
+  	result_fifo_write	<= debug_result_goodsend or debug_result_evildrop;
 
 
 
@@ -238,23 +242,33 @@ begin
 	result_fifo_in_packet(1)	<=	result_evil;              	-- packets marked as "evil"...
 	result_drop             	<=	result_fifo_out_packet(1);	-- ...have to be dropped.
 
+	-- TODO leDebug
+	result_good	<=	debug_result_goodsend; 
+	result_evil	<=	debug_result_evildrop; 
+
 
 	-- TODO content analysers instance goes here
 
 
 	-- instatiate first FIFO for the packets
-	packet_fifo : fifo32_packets
-
+	packet_fifo : fifo32
+	generic map(
+		C_FIFO32_WORD_WIDTH           	=> PACKET_WIDTH,
+		C_FIFO32_DEPTH                	=> 2000,	-- TODO packet buffer size / min. packet size
+		CLOG2_FIFO32_DEPTH            	=> 11,  	-- TODO check.  probably ok like this.
+		--C_FIFO32_CONTROLSIGNAL_WIDTH	=> ;    	-- unused, as we need the full and empty signals only.
+		C_FIFO32_SAFE_READ_WRITE      	=> true
+	)
 	port map(
 		Rst            	=> rst, 
 		FIFO32_S_Clk   	=> clk,
 		FIFO32_M_Clk   	=> clk,
-		FIFO32_S_Data  	=> packet_fifo_out_packet, --tx_ll_data & tx_ll_sof & tx_ll_eof & foo1, -- packet vector
-		FIFO32_M_Data  	=> packet_fifo_in_packet, --rx_ll_data & rx_ll_sof & rx_ll_eof & foo2, -- packet vector
-		--FIFO32_S_Fill	=> , -- unused, we need full and empty only.
-		--FIFO32_M_Rem 	=> , -- unused, we need full and empty only.
-		FIFO32_S_Fill  	=> foo3, -- TODO leDebug
-		FIFO32_M_Rem   	=> foo4, -- TODO leDebug
+		FIFO32_S_Data  	=> packet_fifo_out_packet,	-- packet vector, i.e. data / SOF / EOF
+		FIFO32_M_Data  	=> packet_fifo_in_packet, 
+		--FIFO32_S_Fill	=> ,    	-- unused, we need full and empty only.
+		--FIFO32_M_Rem 	=> ,    	-- unused, we need full and empty only.
+		FIFO32_S_Fill  	=> foo3,	-- TODO leDebug
+		FIFO32_M_Rem   	=> foo4,	-- TODO leDebug
 		FIFO32_S_Full  	=> packet_fifo_full, 
 		FIFO32_M_Empty 	=> packet_fifo_empty, 
 		FIFO32_S_Rd    	=> packet_fifo_read, 
@@ -263,18 +277,24 @@ begin
 
 
 	-- instantiate a second FIFO for the results 
-	result_fifo : fifo32_results
-	-- TODO fuuuuuuuuu I need the generics here... not in the declaration!
+	result_fifo : fifo32
+	generic map(
+		C_FIFO32_WORD_WIDTH           	=> RESULT_WIDTH,
+		C_FIFO32_DEPTH                	=> 2000,	-- TODO 
+		CLOG2_FIFO32_DEPTH            	=> 11,  	-- TODO 
+		--C_FIFO32_CONTROLSIGNAL_WIDTH	=> ;    	-- unused, as we need the full and empty signals only.
+		C_FIFO32_SAFE_READ_WRITE      	=> true
+	) 
 	port map(
 		Rst            	=> rst, 
 		FIFO32_S_Clk   	=> clk,
 		FIFO32_M_Clk   	=> clk,
 		FIFO32_S_Data  	=> result_fifo_out_packet,
 		FIFO32_M_Data  	=> result_fifo_in_packet, 
-		--FIFO32_S_Fill	=> , -- unused, we need full and empty only.
-		--FIFO32_M_Rem 	=> , -- unused, we need full and empty only.
-		FIFO32_S_Full  	=> result_fifo_full, -- TODO maybe these wouldn't be really necessary, as this FIFO can not get full resp. empty as long as the packet_fifo is not full resp. empty.
-		FIFO32_M_Empty 	=> result_fifo_empty, -- TODO think about this
+		--FIFO32_S_Fill	=> ,                 	-- unused, we need full and empty only.
+		--FIFO32_M_Rem 	=> ,                 	-- unused, we need full and empty only.
+		FIFO32_S_Full  	=> result_fifo_full, 	-- TODO maybe these wouldn't be really necessary, as this FIFO can not get full resp. empty as long as the packet_fifo is not full resp. empty.
+		FIFO32_M_Empty 	=> result_fifo_empty,	-- TODO think about this
 		FIFO32_S_Rd    	=> result_fifo_read, 
 		FIFO32_M_Wr    	=> result_fifo_write
 	);
@@ -319,7 +339,13 @@ begin
 		end if;
 	end process;
 
-	sendercontrol_memless : process(sender_state) -- <-- TODO öpdeit sensitivity list / oder mal probieren das ganze einfach ohne Prozess zu machen.
+	sendercontrol_memless : process(	sender_state,     	-- the FSM must know the current state of course
+	                                	result_fifo_empty,	-- it must get notified if fifos is empty or not, EOF or if the dest is not ready anymore.
+	                                	packet_fifo_empty,	-- 
+	                                	tx_ll_dst_rdy,    	-- 
+	                                	out_packet_eof,   	-- 
+	                                	result_send,      	-- maybe the result isn't really needed because it is already sensitive to the FIFO empty signal..
+	                                	result_drop)      	-- 
 	begin
 		case sender_state is
 			when idle =>

@@ -81,7 +81,7 @@ architecture implementation of ips is
   	signal	packet_fifo_write      	:	std_logic;
   	signal	packet_fifo_in_packet  	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
   	signal	packet_fifo_out_packet 	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
-  	signal	out_packet_eof         	:	std_logic; 
+  	signal	out_packet_eof         	:	std_logic; -- intermediate signals, needed because we need to write and read to them. 
   	signal	result_fifo_full       	:	std_logic;
   	signal	result_fifo_empty      	:	std_logic;
   	signal	result_fifo_read       	:	std_logic;
@@ -89,6 +89,7 @@ architecture implementation of ips is
   	signal	result_fifo_in_packet  	:	std_logic_vector(RESULT_WIDTH-1 downto 0); 
   	signal	result_fifo_out_packet 	:	std_logic_vector(RESULT_WIDTH-1 downto 0); 
   	signal	data_valid             	:	std_logic;
+  	signal	receiver_ready         	:	std_logic; -- intermediate signals, needed because we need to write and read to them. 
   	signal	content_analysers_ready	:	std_logic;
 
 
@@ -208,10 +209,10 @@ begin
 
   	-- TODO remove these hardcoded debug assignments
   	--foo1           	<=                                 	(others => '0');
-  	data_valid       	<=                                 	'1'; -- = packet_fifo_write.
+--	data_valid       	<=                                 	'1'; -- = packet_fifo_write.
 --	packet_fifo_read 	<=                                 	debug_fifo_read; --'1'; 
 --	test             	<=                                 	not rx_ll_src_rdy;
-  	rx_ll_dst_rdy    	<= '0' when rst = RESET else       	'1';
+--	tx_ll_dst_rdy    	<= '0' when rst = RESET else       	'1';
 --	tx_ll_sof        	<= '0' when rst = RESET else       	rx_ll_sof;
 --	tx_ll_eof        	<= '0' when rst = RESET else       	rx_ll_eof;
 --	tx_ll_data       	<= "00000000" when rst = RESET else	rx_ll_data;
@@ -222,8 +223,10 @@ begin
 --	tx_ll_data       	<= "00000000" when rst = '1' else  	rx_ll_data;
 --	tx_ll_src_rdy    	<= '0' when rst = '1' else         	'1';
 --	result_fifo_empty	<= '0';                            	
-  	result_fifo_write	<= debug_result_goodsend or debug_result_evildrop;
 
+	-- TODO dieses Signal wird aus den content analysers kommen.
+	result_fifo_write      	<= debug_result_goodsend or debug_result_evildrop;
+	content_analysers_ready	<= '1';
 
 
 	-- define a "packet" as data, sof and eof signals.
@@ -234,9 +237,9 @@ begin
 	--fifo_in_packet(10 to PACKET_WIDTH-1)	<=	foo1;
 	tx_ll_data                            	<=	packet_fifo_out_packet(7 downto 0);
 	tx_ll_sof                             	<=	packet_fifo_out_packet(8);
-	out_packet_eof                        	<=	packet_fifo_out_packet(9); -- intermediate signal, needed to ckeck for EOF.
+	out_packet_eof                        	<=	packet_fifo_out_packet(9); 
 	tx_ll_eof                             	<=	out_packet_eof; 
-	packet_fifo_write                     	<=	debug_fifo_write; -- data_valid;
+	packet_fifo_write                     	<=	data_valid;
 
 	-- the results need to be queued too, s.t. new results can be created while a FIFO'ed packet is being sent.
 	result_fifo_in_packet(0)	<=	result_good;              	-- packets marked as "good"...
@@ -428,11 +431,17 @@ begin
 
 
 
-	receivercontrol: begin
-
-	end; 
-	-- TODO "receiver control" goes here
-		-- process which receives data and generates data_valid signal
+	receivercontrol : process(	-- purely combinatorial, i.e. sensitive to everything.
+	                          	packet_fifo_full, 
+	                          	result_fifo_full,
+	                          	content_analysers_ready,
+	                          	rx_ll_src_rdy,
+	                          	receiver_ready)
+	begin
+		receiver_ready	<=	(not packet_fifo_full)	and (not result_fifo_full)	and content_analysers_ready;
+		data_valid    	<=	rx_ll_src_rdy         	and receiver_ready;
+		rx_ll_dst_rdy 	<=	receiver_ready;
+	end process; 
 
 
 	-- TODO all the h2s logging stuff.

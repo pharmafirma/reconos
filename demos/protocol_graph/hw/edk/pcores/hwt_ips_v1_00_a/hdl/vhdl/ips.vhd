@@ -74,21 +74,23 @@ architecture implementation of ips is
   	--			##    ##  ##  ##    ##  ##   ### ##     ## ## 
   	--			 ######  ####  ######   ##    ## ##     ## ######## 
   	-- signal declarations
---	signal	test                  	:	std_logic	:= '0'; 
-  	signal	packet_fifo_full      	:	std_logic;
-  	signal	packet_fifo_empty     	:	std_logic;
-  	signal	packet_fifo_read      	:	std_logic;
-  	signal	packet_fifo_write     	:	std_logic;
-  	signal	packet_fifo_in_packet 	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
-  	signal	packet_fifo_out_packet	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
-  	signal	out_packet_eof        	:	std_logic; 
-  	signal	result_fifo_full      	:	std_logic;
-  	signal	result_fifo_empty     	:	std_logic;
-  	signal	result_fifo_read      	:	std_logic;
-  	signal	result_fifo_write     	:	std_logic;
-  	signal	result_fifo_in_packet 	:	std_logic_vector(RESULT_WIDTH-1 downto 0); 
-  	signal	result_fifo_out_packet	:	std_logic_vector(RESULT_WIDTH-1 downto 0); 
-  	signal	data_valid            	:	std_logic;
+--	signal	test                   	:	std_logic	:= '0'; 
+  	signal	packet_fifo_full       	:	std_logic;
+  	signal	packet_fifo_empty      	:	std_logic;
+  	signal	packet_fifo_read       	:	std_logic;
+  	signal	packet_fifo_write      	:	std_logic;
+  	signal	packet_fifo_in_packet  	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
+  	signal	packet_fifo_out_packet 	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
+  	signal	out_packet_eof         	:	std_logic; 
+  	signal	result_fifo_full       	:	std_logic;
+  	signal	result_fifo_empty      	:	std_logic;
+  	signal	result_fifo_read       	:	std_logic;
+  	signal	result_fifo_write      	:	std_logic;
+  	signal	result_fifo_in_packet  	:	std_logic_vector(RESULT_WIDTH-1 downto 0); 
+  	signal	result_fifo_out_packet 	:	std_logic_vector(RESULT_WIDTH-1 downto 0); 
+  	signal	data_valid             	:	std_logic;
+  	signal	content_analysers_ready	:	std_logic;
+
 
 	-- sender control states
 	type     	sendercontrol_type	is	( -- see sendercontrol process for an explanation of all states.
@@ -213,7 +215,7 @@ begin
 --	tx_ll_sof        	<= '0' when rst = RESET else       	rx_ll_sof;
 --	tx_ll_eof        	<= '0' when rst = RESET else       	rx_ll_eof;
 --	tx_ll_data       	<= "00000000" when rst = RESET else	rx_ll_data;
-  	tx_ll_src_rdy    	<= '0' when rst = RESET else       	'1';
+--	tx_ll_src_rdy    	<= '0' when rst = RESET else       	'1';
 --	rx_ll_dst_rdy    	<= '0' when rst = '1' else         	'1';
 --	tx_ll_sof        	<= '0' when rst = '1' else         	rx_ll_sof;
 --	tx_ll_eof        	<= '0' when rst = '1' else         	rx_ll_eof;
@@ -254,9 +256,9 @@ begin
 	packet_fifo : fifo32
 	generic map(
 		C_FIFO32_WORD_WIDTH           	=> PACKET_WIDTH,
-		C_FIFO32_DEPTH                	=> 2000,	-- TODO packet buffer size / min. packet size
-		CLOG2_FIFO32_DEPTH            	=> 11,  	-- TODO check.  probably ok like this.
-		--C_FIFO32_CONTROLSIGNAL_WIDTH	=> ;    	-- unused, as we need the full and empty signals only.
+		C_FIFO32_DEPTH                	=> 200,	-- TODO packet buffer size / min. packet size
+		CLOG2_FIFO32_DEPTH            	=> 11, 	-- TODO check.  probably ok like this.
+		--C_FIFO32_CONTROLSIGNAL_WIDTH	=> ;   	-- unused, as we need the full and empty signals only.
 		C_FIFO32_SAFE_READ_WRITE      	=> true
 	)
 	port map(
@@ -280,9 +282,9 @@ begin
 	result_fifo : fifo32
 	generic map(
 		C_FIFO32_WORD_WIDTH           	=> RESULT_WIDTH,
-		C_FIFO32_DEPTH                	=> 2000,	-- TODO 
-		CLOG2_FIFO32_DEPTH            	=> 11,  	-- TODO 
-		--C_FIFO32_CONTROLSIGNAL_WIDTH	=> ;    	-- unused, as we need the full and empty signals only.
+		C_FIFO32_DEPTH                	=> 42,	-- TODO 
+		CLOG2_FIFO32_DEPTH            	=> 11,	-- TODO 
+		--C_FIFO32_CONTROLSIGNAL_WIDTH	=> ;  	-- unused, as we need the full and empty signals only.
 		C_FIFO32_SAFE_READ_WRITE      	=> true
 	) 
 	port map(
@@ -325,13 +327,13 @@ begin
 
 	sendercontrol_memzing : process(clk, rst)
 	-- TODO auf 0 setzen während dem RESETisieren:
-		-- rx...dst_rdy
-		-- tx...src_rdy
+		-- rx...dst_rdy (im receiver control!!)
 
 	begin
 		-- register with asynchronous reset.
-		if (reset = RESET) then
-			sender_state <= idle;
+		if (rst = RESET) then
+			sender_state   	<= idle;
+			--tx_ll_src_rdy	<= '0'; -- machts automatisch im idle state :-)
 		elsif (rising_edge(clk)) then
 			--sender_last_state <= sender_state;
 			-- mach das nur, wenn es von einem Working State in den idle geht
@@ -343,9 +345,10 @@ begin
 	                                	result_fifo_empty,	-- it must get notified if fifos is empty or not, EOF or if the dest is not ready anymore.
 	                                	packet_fifo_empty,	-- 
 	                                	tx_ll_dst_rdy,    	-- 
-	                                	out_packet_eof,   	-- 
-	                                	result_send,      	-- maybe the result isn't really needed because it is already sensitive to the FIFO empty signal..
-	                                	result_drop)      	-- 
+	                                	out_packet_eof    	-- 
+	                                	--result_send,    	-- maybe the result isn't really needed because it is already sensitive to the FIFO empty signal..
+	                                	--result_drop     	-- 
+	                                	)
 	begin
 		case sender_state is
 			when idle =>
@@ -403,6 +406,9 @@ begin
 					sender_next_state <= send_stalled; 
 				end if; 
 
+				-- TODO possible optimisation:
+				   -- Jump directly to the next packet (i.e. send_nextbyte state) if the next packet is already waiting in the FIFO.
+
 			when send_stalled =>
 				result_fifo_read	<= '0';
 				packet_fifo_read	<= '0'; 
@@ -422,7 +428,9 @@ begin
 
 
 
+	receivercontrol: begin
 
+	end; 
 	-- TODO "receiver control" goes here
 		-- process which receives data and generates data_valid signal
 

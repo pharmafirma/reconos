@@ -99,8 +99,24 @@ begin
 	                      	x"ad", 
 	                      	x"be", 
 	                      	x"ef", 
-	                      	x"00", 
-	                      	x"11", -- and a counter
+	                      	x"00",	-- and 2 counters
+	                      	x"11",
+	                      	x"22", 
+	                      	x"33", 
+	                      	x"44", 
+	                      	x"55", 
+	                      	x"66", 
+	                      	x"77", 
+	                      	x"88", 
+	                      	x"99", 
+	                      	x"aa", 
+	                      	x"bb", 
+	                      	x"cc", 
+	                      	x"dd", 
+	                      	x"ee", 
+	                      	x"ff", 
+	                      	x"00",
+	                      	x"11",
 	                      	x"22", 
 	                      	x"33", 
 	                      	x"44", 
@@ -143,24 +159,39 @@ begin
 
 
 		case packet_state is
-		when P_STATE_INIT  => 
-			tx_ll_sof	<= '1';
-			if tx_ll_dst_rdy = '1' then
-				packet_state_next	<= P_STATE_SEND;
-				cur_len_next     	<= 1;
-			end if;
-		when P_STATE_SEND  => 
-			if cur_len = packet_len then
-				tx_ll_eof              	<= '1';
-				debug_result_goodsend  	<= '1';
-				--debug_result_evildrop	<= '1';
-				packet_state_next      	<= P_STATE_INIT;
-			end if;
-			if tx_ll_dst_rdy = '1' then
-				cur_len_next        	<= cur_len + 1;
-				-- packet_state_next	<= P_STATE_SEND; -- implicitely given.
-			end if;
+
+			when P_STATE_INIT  => 
+				tx_ll_sof	<= '1';
+				if tx_ll_dst_rdy = '1' then
+					packet_state_next	<= P_STATE_SEND;
+					cur_len_next     	<= 1;
+				end if;
+
+			when P_STATE_SEND  => 
+				if tx_ll_dst_rdy = '1' then
+					cur_len_next        	<= cur_len + 1;
+					-- packet_state_next	<= P_STATE_SEND; -- implicitely given.
+				end if;
+				if cur_len = packet_len then
+					tx_ll_eof        	<= '1';
+					packet_state_next	<= P_STATE_INIT;
+					cur_len_next     	<= 0;
+				end if;
+
+
+				-- define here, when to send the "good" resp "bad" signal.
+				-- e.g. if cur_len = packet_len-5 then debug_result_evildrop	<= '1'; end if; 
+				if cur_len = packet_len-5 then
+					--debug_result_goodsend	<= '1';
+					debug_result_evildrop  	<= '1';
+				end if;
+
+				
 		end case;
+
+
+
+
 	end process;
 
 
@@ -192,10 +223,10 @@ begin
 			debug_fifo_write <= '0';
 	    elsif rising_edge(clk) then
 			debug_fifo_write <= '1';
-			--debug_fifo_read <= '1'; -- see process below
-			-- if (debug_fifo_write = '0') then
-			--	debug_fifo_read <= '0';
-			-- end if;
+			debug_fifo_read <= '1'; -- see process below
+			 if (debug_fifo_write = '0') then
+				debug_fifo_read <= '0';
+			 end if;
 	    end if;
 	end process;
 

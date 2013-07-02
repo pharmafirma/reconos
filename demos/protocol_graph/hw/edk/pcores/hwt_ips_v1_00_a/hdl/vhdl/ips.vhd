@@ -68,14 +68,15 @@ architecture implementation of ips is
 	constant	RESULT_WIDTH	:	integer  	:= 1; 	-- width of the result (good or evil, note that all results in the FIFO have to be valid!)
 
 
-  	--			 ######  ####  ######   ##    ##    ###    ## 
-  	--			##    ##  ##  ##    ##  ###   ##   ## ##   ##
-  	--			##        ##  ##        ####  ##  ##   ##  ## 
-  	--			 ######   ##  ##   #### ## ## ## ##     ## ## 
-  	--			      ##  ##  ##    ##  ##  #### ######### ## 
-  	--			##    ##  ##  ##    ##  ##   ### ##     ## ## 
-  	--			 ######  ####  ######   ##    ## ##     ## ######## 
-  	-- signal declarations
+	--			 ######   ####   ######    ##    ##     ###     ## 
+	--			##    ##   ##   ##    ##   ###   ##    ## ##    ##
+	--			##         ##   ##         ####  ##   ##   ##   ## 
+	--			 ######    ##   ##   ####  ## ## ##  ##     ##  ## 
+	--			      ##   ##   ##    ##   ##  ####  #########  ## 
+	--			##    ##   ##   ##    ##   ##   ###  ##     ##  ## 
+	--			 ######   ####   ######    ##    ##  ##     ##  ######## 
+	-- signal declarations
+
 --	signal	test                   	:	std_logic	:= '0'; 
   	signal	packet_fifo_full       	:	std_logic;
   	signal	packet_fifo_empty      	:	std_logic;

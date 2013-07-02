@@ -11,6 +11,7 @@ end entity ips_tb;
 
 architecture RTL of ips_tb is
 	
+
 	--      	data & control signals:	
 	signal  	rx_ll_sof              	: std_logic;
 	signal  	rx_ll_eof              	: std_logic;
@@ -34,24 +35,26 @@ architecture RTL of ips_tb is
 	--      	clock and reset:       	
 	signal  	clk                    	: std_logic;
 	signal  	rst                    	: std_logic;
-	constant	RESET                  	: std_logic := '1';
+	constant	RESET                  	: std_logic	:= '1'; -- define if rst is active low or active high
+	constant	GOOD_FORWARD           	: std_logic	:= '1'; -- used constants instead of a "type" to simplify queuing.
+	constant	EVIL_DROP              	: std_logic	:= '0';
 	
 	-- some debug signals
-	signal                           	debug_fifo_read   :	std_logic;
-	signal   debug_fifo_write  :     	std_logic;
-	signal   debug_severe_error  :   	std_logic;
-	signal   debug_result_goodsend  :	std_logic;
-	signal   debug_result_evildrop  :	std_logic;
+	signal                         	debug_fifo_read   :	std_logic;
+	signal   debug_fifo_write  :   	std_logic;
+	signal   debug_severe_error  : 	std_logic;
+	signal   debug_result_result  :	std_logic;
+	signal   debug_result_valid  : 	std_logic;
 
 	
 	-- the TB has only one component, which ist the entity to be tested (model under test, MUT):
 	component ips is
 		port (
-			debug_fifo_read      	:	in 	std_logic;
-			debug_fifo_write     	:	in 	std_logic;
-			debug_severe_error   	:	out	std_logic; 
-			debug_result_goodsend	:	in 	std_logic; 
-			debug_result_evildrop	:	in 	std_logic; 
+			debug_fifo_read    	:	in 	std_logic;
+			debug_fifo_write   	:	in 	std_logic;
+			debug_severe_error 	:	out	std_logic; 
+			debug_result_result	:	in 	std_logic; 
+			debug_result_valid 	:	in 	std_logic; 
 
 			rst          	:	in 	std_logic;
 			clk          	:	in 	std_logic;
@@ -154,8 +157,8 @@ begin
 		cur_len_next     	<= cur_len;
 		packet_state_next	<= packet_state;
 
-		debug_result_goodsend <= '0';
-		debug_result_evildrop <= '0';
+		debug_result_result <= '0';
+		debug_result_valid <= '0';
 
 
 		case packet_state is
@@ -180,10 +183,10 @@ begin
 
 
 				-- define here, when to send the "good" resp "bad" signal.
-				-- e.g. if cur_len = packet_len-5 then debug_result_evildrop	<= '1'; end if; 
+				-- e.g. if cur_len = packet_len-5 then debug_result_valid	<= '1'; end if; 
 				if cur_len = packet_len-5 then
-					--debug_result_goodsend	<= '1';
-					debug_result_evildrop  	<= '1';
+					debug_result_result	<= GOOD_FORWARD;
+					debug_result_valid 	<= '1';
 				end if;
 
 				
@@ -240,11 +243,11 @@ begin
 	-- instatiate 1 ips component
 	ips_inst : ips 
 	port map(
-	   debug_fifo_read         =>        	debug_fifo_read,
-	   debug_fifo_write        =>        	debug_fifo_write,
-	debug_severe_error         =>        	debug_severe_error,
-	debug_result_goodsend            =>  		debug_result_goodsend,
-	debug_result_evildrop              =>		debug_result_evildrop, 
+	   debug_fifo_read         =>     	debug_fifo_read,
+	   debug_fifo_write        =>     	debug_fifo_write,
+	debug_severe_error         =>     	debug_severe_error,
+	debug_result_result            => 		debug_result_result,
+	debug_result_valid              =>		debug_result_valid, 
 
 		rst                    	=>	rst,
 		clk                    	=>	clk,

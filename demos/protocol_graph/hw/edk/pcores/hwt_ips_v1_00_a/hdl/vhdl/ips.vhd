@@ -36,23 +36,23 @@ entity ips is
 --		sender     		: std_logic
 --	);
   	port (
-  		debug_fifo_read      	:	in 	std_logic;
-  		debug_fifo_write     	:	in 	std_logic;
-  		debug_severe_error   	:	out	std_logic; 
-  		debug_result_goodsend	:	in 	std_logic; 
-  		debug_result_evildrop	:	in 	std_logic; 
-  		rst                  	:	in 	std_logic;
-  		clk                  	:	in 	std_logic;
-  		rx_ll_sof            	:	in 	std_logic;
-  		rx_ll_eof            	:	in 	std_logic;
-  		rx_ll_data           	:	in 	std_logic_vector(7 downto 0);
-  		rx_ll_src_rdy        	:	in 	std_logic;
-  		rx_ll_dst_rdy        	:	out	std_logic;	
-  		tx_ll_sof            	:	out	std_logic;
-  		tx_ll_eof            	:	out	std_logic;
-  		tx_ll_data           	:	out	std_logic_vector(7 downto 0);
-  		tx_ll_src_rdy        	:	out	std_logic;
-  		tx_ll_dst_rdy        	:	in 	std_logic
+  		debug_fifo_read    	:	in 	std_logic;
+  		debug_fifo_write   	:	in 	std_logic;
+  		debug_severe_error 	:	out	std_logic; 
+  		debug_result_result	:	in 	std_logic; 
+  		debug_result_valid 	:	in 	std_logic; 
+  		rst                	:	in 	std_logic;
+  		clk                	:	in 	std_logic;
+  		rx_ll_sof          	:	in 	std_logic;
+  		rx_ll_eof          	:	in 	std_logic;
+  		rx_ll_data         	:	in 	std_logic_vector(7 downto 0);
+  		rx_ll_src_rdy      	:	in 	std_logic;
+  		rx_ll_dst_rdy      	:	out	std_logic;	
+  		tx_ll_sof          	:	out	std_logic;
+  		tx_ll_eof          	:	out	std_logic;
+  		tx_ll_data         	:	out	std_logic_vector(7 downto 0);
+  		tx_ll_src_rdy      	:	out	std_logic;
+  		tx_ll_dst_rdy      	:	in 	std_logic
   	);
 
 end ips;
@@ -61,9 +61,11 @@ end ips;
 
 architecture implementation of ips is
 	-- some constants
-	constant	RESET       	:	std_logic	:= '1';
+	constant	RESET       	:	std_logic	:= '1'; -- define if rst is active low or active high
+	constant	GOOD_FORWARD	:	std_logic	:= '1'; -- used constants instead of a "type" to simplify queuing.
+	constant	EVIL_DROP   	:	std_logic	:= '0';
 	constant	PACKET_WIDTH	:	integer  	:= 10;	-- width of data + control bits (sof, eof, etc.)
-	constant	RESULT_WIDTH	:	integer  	:= 2; 	-- width of the result (good, evil, unknown)
+	constant	RESULT_WIDTH	:	integer  	:= 1; 	-- width of the result (good or evil, note that all results in the FIFO have to be valid!)
 
 
   	--			 ######  ####  ######   ##    ##    ###    ## 
@@ -93,24 +95,24 @@ architecture implementation of ips is
   	signal	content_analysers_ready	:	std_logic;
 
 
-	-- sender control states
-	type     	sendercontrol_type	is	( -- see sendercontrol process for an explanation of all states.
-	         	                  	  	idle, 
-	         	                  	  	drop, 
-	         	                  	  	send_stalled, 
-	         	                  	  	send_nextbyte); 
-	signal   	sender_state      	: 	sendercontrol_type;
-	signal   	sender_next_state 	: 	sendercontrol_type;
-	signal   	sender_last_state 	: 	sendercontrol_type;
-	-- type  	result_type       	is	( -- possible states of a packet.
-	--       	                  	unknown,
-	--       	                  	good, 
-	--       	                  	evil); 
-	-- signal	result            	:	result_type; -- result of the checks. 
-	signal   	result_good       	:	std_logic; -- Output of the content analysers, i.e.
-	signal   	result_evil       	:	std_logic; --    at the input of the result_fifo
-	signal   	result_send       	:	std_logic; -- The resp. values, but
-	signal   	result_drop       	:	std_logic; --    at the output of the result_fifo
+  	-- sender control states
+  	type  	sendercontrol_type	is	( -- see sendercontrol process for an explanation of all states.
+  	      	                  	  	idle, 
+  	      	                  	  	drop, 
+  	      	                  	  	send_stalled, 
+  	      	                  	  	send_nextbyte); 
+  	signal	sender_state      	: 	sendercontrol_type;
+  	signal	sender_next_state 	: 	sendercontrol_type;
+  	signal	sender_last_state 	: 	sendercontrol_type;
+  	--type	result_type       	is	(            	
+  	--    	                  	  	good_forward,	
+  	--    	                  	  	evil_drop); 
+  	signal	result            	: 	std_logic;	-- possible outcomes of the packet inspection. 
+  	signal	result_valid      	: 	std_logic;	-- Note that the result is futile as long as the result_valid bit is not set.
+--	signal	result_good       	: 	std_logic; -- Output of the content analysers, i.e.
+--	signal	result_evil       	: 	std_logic; --    at the input of the result_fifo
+  	signal	result_before_fifo	: 	std_logic; -- The resp. values, but
+--	signal	result_drop       	: 	std_logic; --    at the output of the result_fifo
 
 
 	-- TODO: declare more signals, especially:
@@ -225,7 +227,7 @@ begin
 --	result_fifo_empty	<= '0';                            	
 
 	-- TODO dieses Signal wird aus den content analysers kommen.
-	result_fifo_write      	<= debug_result_goodsend or debug_result_evildrop;
+	result_fifo_write      	<= debug_result_valid;
 	content_analysers_ready	<= '1';
 
 
@@ -242,14 +244,14 @@ begin
 	packet_fifo_write                     	<=	data_valid;
 
 	-- the results need to be queued too, s.t. new results can be created while a FIFO'ed packet is being sent.
-	result_fifo_in_packet(0)	<=	result_good;              	-- packets marked as "good"...
-	result_send             	<=	result_fifo_out_packet(0);	-- ...can be sent.
-	result_fifo_in_packet(1)	<=	result_evil;              	-- packets marked as "evil"...
-	result_drop             	<=	result_fifo_out_packet(1);	-- ...have to be dropped.
+	result_fifo_in_packet(0)  	<=	result_before_fifo;       	-- packets marked as "good"...
+	result                    	<=	result_fifo_out_packet(0);	-- ...can be sent.
+	--result_fifo_in_packet(1)	<=	result_evil;              	-- packets marked as "evil"...
+	--result_drop             	<=	result_fifo_out_packet(1);	-- ...have to be dropped.
 
 	-- TODO leDebug
-	result_good	<=	debug_result_goodsend; 
-	result_evil	<=	debug_result_evildrop; 
+	result_before_fifo	<=	debug_result_result; 
+	--result_evil     	<=	debug_result_valid; 
 
 
 	-- TODO content analysers instance goes here
@@ -365,19 +367,20 @@ begin
 				-- update next state
 				if (result_fifo_empty = '0' and packet_fifo_empty = '0') then
 					result_fifo_read <= '1';
-					if (result_drop = '1') then
+					-- note that there are only valid results in the FIFO.
+					if (result = EVIL_DROP) then
 						sender_next_state <= drop; 
-					elsif (result_send = '1') then 
+					else -- i.e. (result = GOOD_FORWARD) then 
 						if (tx_ll_dst_rdy = '0') then 
 							sender_next_state <= send_stalled;
 						else
 							sender_next_state <= send_nextbyte;
 						end if;
-					else
-						-- result is "unknown". 
-						-- This should not happen..... 
-						debug_severe_error <= '1'; 
-						sender_next_state <= idle; 
+					--else
+					  	-- result is "unknown". 
+					  	-- This should not happen..... 
+					--	debug_severe_error	<= '1'; 
+					--	sender_next_state 	<= idle; 
 					end if; 
 				end if; 
 

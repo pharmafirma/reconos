@@ -298,8 +298,8 @@ begin
 		FIFO32_M_Data  	=> result_fifo_in_packet, 
 		--FIFO32_S_Fill	=> ,                 	-- unused, we need full and empty only.
 		--FIFO32_M_Rem 	=> ,                 	-- unused, we need full and empty only.
-		FIFO32_S_Full  	=> result_fifo_full, 	-- TODO maybe these wouldn't be really necessary, as this FIFO can not get full resp. empty as long as the packet_fifo is not full resp. empty.
-		FIFO32_M_Empty 	=> result_fifo_empty,	-- TODO think about this
+		FIFO32_S_Full  	=> result_fifo_full, 	-- Note that the result FIFO can still be empty although there is a packet in the packet FIFO.
+		FIFO32_M_Empty 	=> result_fifo_empty,	-- This happens if a content analysis takes longer than the packet, e.g. due to pipelining.
 		FIFO32_S_Rd    	=> result_fifo_read, 
 		FIFO32_M_Wr    	=> result_fifo_write
 	);

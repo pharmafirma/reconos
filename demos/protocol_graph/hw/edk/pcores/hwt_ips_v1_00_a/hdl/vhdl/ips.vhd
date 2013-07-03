@@ -196,18 +196,30 @@ architecture implementation of ips is
 	--	);
 	-- end component;
 
-	-- component content_analysers is
-	--		TODO
+
+
+	-- component packet_inspection is
+	-- port (
+	--	rst                      	:	in 	std_logic;
+	--	clk                      	:	in 	std_logic;
+	--	rx_sof                   	:	in 	std_logic;
+	--	rx_eof                   	:	in 	std_logic;
+	--	rx_data                  	:	in 	std_logic_vector(7 downto 0);
+	--	rx_data_valid            	:	in 	std_logic;
+	--	rx_packetinspection_ready	:	out	std_logic;
+	--	tx_result                	:	out	std_logic; -- from the outside this interface looks like a FIFO
+	--	tx_fifo_empty            	:	out	std_logic
+	-- );
 	-- end component
 
 
---				########  ########  ######   #### ##    ## 
---				##     ## ##       ##    ##   ##  ###   ## 
---				##     ## ##       ##         ##  ####  ## 
---				########  ######   ##   ####  ##  ## ## ## 
---				##     ## ##       ##    ##   ##  ##  #### 
---				##     ## ##       ##    ##   ##  ##   ### 
---				########  ########  ######   #### ##    ## 
+--				########   ########   ######    ####  ##    ## 
+--				##     ##  ##        ##    ##    ##   ###   ## 
+--				##     ##  ##        ##          ##   ####  ## 
+--				########   ######    ##   ####   ##   ## ## ## 
+--				##     ##  ##        ##    ##    ##   ##  #### 
+--				##     ##  ##        ##    ##    ##   ##   ### 
+--				########   ########   ######    ####  ##    ## 
 begin
 
   	-- TODO remove these hardcoded debug assignments
@@ -255,7 +267,18 @@ begin
 	--result_evil     	<=	debug_result_valid; 
 
 
-	-- TODO content analysers instance goes here
+	-- packet_inspection_inst : packet_inspection
+	-- port map(
+	--	rst                      	<=	in 	,
+	--	clk                      	<=	in 	,
+	--	rx_sof                   	<=	in 	,
+	--	rx_eof                   	<=	in 	,
+	--	rx_data                  	<=	in 	,
+	--	rx_data_valid            	<=	in 	,
+	--	rx_packetinspection_ready	<=	out	,
+	--	tx_result                	<=	out	,
+	--	tx_fifo_empty            	<=	out	
+	-- );
 
 
 	-- instatiate first FIFO for the packets

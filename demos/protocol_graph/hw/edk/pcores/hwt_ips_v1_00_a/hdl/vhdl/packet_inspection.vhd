@@ -94,10 +94,21 @@ architecture implementation of packet_inspection is
 	-- include components
 
 
-	-- TODO include one component for each content analysis.
-
-
-
+	-- include one component for each content analysis.
+	-- TODO somehow generic'ise this
+	component ca_utf8_nonshortest_form is
+		port (
+			rst            	:	in 	std_logic;
+			clk            	:	in 	std_logic;
+			rx_sof         	:	in 	std_logic;
+			rx_eof         	:	in 	std_logic;
+			rx_data        	:	in 	std_logic_vector(7 downto 0);
+			rx_data_valid  	:	in 	std_logic;
+			rx_ca_ready    	:	out	std_logic;
+			tx_result      	:	out	std_logic;
+			tx_result_valid	:	out	std_logic
+		);
+	end component;
 
 	-- include FIFO component for the results
 	component fifo32 is
@@ -108,19 +119,19 @@ architecture implementation of packet_inspection is
 		C_FIFO32_SAFE_READ_WRITE	:	boolean	:= true
 	);
 		port (
-		Rst           	:	in	std_logic;
-		-- ..._M_...  	=	input of the FIFO.
-		-- ..._S_...  	=	output of the FIFO.
-		FIFO32_S_Clk  	:	in 	std_logic;                                                	-- clock and data signals
-		FIFO32_M_Clk  	:	in 	std_logic;                                                	
-		FIFO32_S_Data 	:	out	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);         	
-		FIFO32_M_Data 	:	in 	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);         	
-		FIFO32_S_Fill 	:	out	std_logic_vector(C_FIFO32_CONTROLSIGNAL_WIDTH-1 downto 0);	-- # elements in the FIFO. 0 means FIFO is empty.
-		FIFO32_M_Rem  	:	out	std_logic_vector(C_FIFO32_CONTROLSIGNAL_WIDTH-1 downto 0);	-- remaining free space. 0 means FIFO is full.
-		FIFO32_S_Full 	:	out	std_logic;                                                	-- FIFO full signal
-		FIFO32_M_Empty	:	out	std_logic;                                                	-- FIFO empty signal
-		FIFO32_S_Rd   	:	in 	std_logic;                                                	-- output data ready
-		FIFO32_M_Wr   	:	in 	std_logic   
+			Rst           	:	in	std_logic;
+			-- ..._M_...  	=	input of the FIFO.
+			-- ..._S_...  	=	output of the FIFO.
+			FIFO32_S_Clk  	:	in 	std_logic;                                                	-- clock and data signals
+			FIFO32_M_Clk  	:	in 	std_logic;                                                	
+			FIFO32_S_Data 	:	out	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);         	
+			FIFO32_M_Data 	:	in 	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);         	
+			FIFO32_S_Fill 	:	out	std_logic_vector(C_FIFO32_CONTROLSIGNAL_WIDTH-1 downto 0);	-- # elements in the FIFO. 0 means FIFO is empty.
+			FIFO32_M_Rem  	:	out	std_logic_vector(C_FIFO32_CONTROLSIGNAL_WIDTH-1 downto 0);	-- remaining free space. 0 means FIFO is full.
+			FIFO32_S_Full 	:	out	std_logic;                                                	-- FIFO full signal
+			FIFO32_M_Empty	:	out	std_logic;                                                	-- FIFO empty signal
+			FIFO32_S_Rd   	:	in 	std_logic;                                                	-- output data ready
+			FIFO32_M_Wr   	:	in 	std_logic   
 		);
 	end component;
 
@@ -144,8 +155,11 @@ begin
 
 
 	-- do not check the first n bytes, because they are in the header.
-	skipheader_memless : process(	-- TODO TUDU 
-	                             	)
+	skipheader_memless : process(	skipheader_state, 
+	                             	rx_sof, 
+	                             	rx_eof, 
+	                             	skipheader_count,
+	                             	header_length)
 	begin
 		case skipheader_state is
 		
@@ -162,13 +176,15 @@ begin
 				elsif (rx_eof) then
 					skipheader_next_state	<=	idle; 
 				end if ;
-				-- TODO outputs
+				skipheader_next_count	<=	skipheader_count-1; 
+				check_me             	<=	'0';
 
 			when next_data_byte =>
 				if (rx_eof) then
 					skipheader_next_state	<=	idle; 
 				end if ;
-				-- TODO outputs
+				skipheader_next_count	<=	skipheader_count; 
+				check_me             	<=	'1';
 		
 		end case ;
 	end process ; -- skipheader_memless
@@ -186,9 +202,22 @@ begin
 	end process ; -- skipheader_memzing
 
 
-	-- TODO instantiate all content analysis components
-
-
+	-- instantiate all content analysis components
+	ca_utf8_nonshortest_form : ca_utf8_nonshortest_form
+	port map(
+		-- The same signal for all content analysers.
+		rst          	=>	rst,
+		clk          	=>	clk,
+		rx_sof       	=>	rx_sof,
+		rx_eof       	=>	rx_eof,
+		rx_data      	=>	rx_data,
+		rx_data_valid	=>	check_me,
+		-- TODO generic'ise me.
+		-- Signals specific for each content analyser.
+		rx_ca_ready    	=>	ca_ready_1,
+		tx_result      	=>	result_1,
+		tx_result_valid	=>	result_valid_1
+	);
 
 
 

@@ -30,17 +30,17 @@ entity ca_utf8_nonshortest_form is
 --		sender     		: std_logic
 --	);
   	port (
-  		rst                     	:	in 	std_logic;
-  		clk                     	:	in 	std_logic;
-  		rx_sof                  	:	in 	std_logic;
-  		rx_eof                  	:	in 	std_logic;
-  		rx_data                 	:	in 	std_logic_vector(7 downto 0);
-  		rx_data_valid           	:	in 	std_logic;
-  		rx_contentanalysis_ready	:	out	std_logic;
-  		--result_good           	:	out	std_logic;
-  		--result_evil           	:	out	std_logic;
-  		tx_result               	:	out	std_logic;
-  		tx_result_valid         	:	out	std_logic
+  		rst            	:	in 	std_logic;
+  		clk            	:	in 	std_logic;
+  		rx_sof         	:	in 	std_logic;
+  		rx_eof         	:	in 	std_logic;
+  		rx_data        	:	in 	std_logic_vector(7 downto 0);
+  		rx_data_valid  	:	in 	std_logic;
+  		rx_ca_ready    	:	out	std_logic;
+  		--result_good  	:	out	std_logic;
+  		--result_evil  	:	out	std_logic;
+  		tx_result      	:	out	std_logic;
+  		tx_result_valid	:	out	std_logic
   	);
 
 end ca_utf8_nonshortest_form;

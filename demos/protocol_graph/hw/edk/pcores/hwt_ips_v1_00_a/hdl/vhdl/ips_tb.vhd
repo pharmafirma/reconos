@@ -75,7 +75,13 @@ architecture RTL of ips_tb is
 begin
 
 	packet_len  <= 64; -- constant for the moment
-	rx_ll_dst_rdy  <= '1';
+
+	-- TEST: receiver not ready after certaint time.
+	rx_ll_dst_rdy  <= '1', '0' after 1.78 ms, '1' after 2.5111 ms;
+
+	-- TEST: sender not ready
+	tx_ll_src_rdy	<= '1', '0' after 2.3333 ms;
+
 
 
 	-- FSM which generates packets. 
@@ -152,7 +158,6 @@ begin
 	begin
 		tx_ll_sof        	<= '0'; 
 		tx_ll_eof        	<= '0';
-		tx_ll_src_rdy    	<= '1';
 		tx_ll_data       	<= packet_tx_payload(cur_len);
 		cur_len_next     	<= cur_len;
 		packet_state_next	<= packet_state;
@@ -185,7 +190,7 @@ begin
 				-- define here, when to send the "good" resp "bad" signal.
 				-- e.g. if cur_len = packet_len-5 then debug_result_valid	<= '1'; end if; 
 				if cur_len = packet_len-5 then
-					debug_result_result	<= GOOD_FORWARD;
+					debug_result_result	<= EVIL_DROP;
 					debug_result_valid 	<= '1';
 				end if;
 

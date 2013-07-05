@@ -433,7 +433,9 @@ begin
 				elsif (tx_ll_dst_rdy = '1' and packet_fifo_empty = '0') then 
 					sender_next_state <= send_nextbyte; 
 				else
-					sender_next_state <= send_stalled; 
+					-- i.e. FIFO is empty
+					sender_next_state	<= send_stalled; 
+					tx_ll_src_rdy    	<=	'0';
 				end if; 
 
 				-- TODO possible optimisation:
@@ -443,6 +445,7 @@ begin
 				result_fifo_read	<= '0';
 				packet_fifo_read	<= '0'; 
 				tx_ll_src_rdy   	<= '1'; 
+
 				-- TODO log.
 
 				-- Checking for EOF makes no sense while we are stalled.
@@ -450,7 +453,9 @@ begin
 				if (tx_ll_dst_rdy = '1' and packet_fifo_empty = '0') then 
 					sender_next_state <= send_nextbyte; 
 				else
-					sender_next_state <= send_stalled; 
+					-- i.e. FIFO is empty
+					sender_next_state	<= send_stalled; 
+					tx_ll_src_rdy    	<=	'0';
 				end if; 
 
 		end case;

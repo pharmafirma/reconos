@@ -93,7 +93,7 @@ architecture implementation of ips is
   	signal	result_fifo_out_packet 	:	std_logic_vector(RESULT_WIDTH-1 downto 0); 
   	signal	data_valid             	:	std_logic;
   	signal	receiver_ready         	:	std_logic; -- intermediate signals, needed because we need to write and read to them. 
-  	signal	content_analysers_ready	:	std_logic;
+  	signal	packet_inspection_ready	:	std_logic;
 
 
   	-- sender control states
@@ -198,19 +198,19 @@ architecture implementation of ips is
 
 
 
-	-- component packet_inspection is
-	-- port (
-	--	rst                      	:	in 	std_logic;
-	--	clk                      	:	in 	std_logic;
-	--	rx_sof                   	:	in 	std_logic;
-	--	rx_eof                   	:	in 	std_logic;
-	--	rx_data                  	:	in 	std_logic_vector(7 downto 0);
-	--	rx_data_valid            	:	in 	std_logic;
-	--	rx_packetinspection_ready	:	out	std_logic;
-	--	tx_result                	:	out	std_logic; -- from the outside this interface looks like a FIFO
-	--	tx_fifo_empty            	:	out	std_logic
-	-- );
-	-- end component
+	component packet_inspection is
+	port (
+		rst                      	:	in 	std_logic;
+		clk                      	:	in 	std_logic;
+		rx_sof                   	:	in 	std_logic;
+		rx_eof                   	:	in 	std_logic;
+		rx_data                  	:	in 	std_logic_vector(7 downto 0);
+		rx_data_valid            	:	in 	std_logic;
+		rx_packetinspection_ready	:	out	std_logic;
+		tx_result                	:	out	std_logic; -- from the outside this interface looks like a FIFO
+		tx_fifo_empty            	:	out	std_logic
+	);
+	end component;
 
 
 --				########   ########   ######    ####  ##    ## 
@@ -240,8 +240,8 @@ begin
 --	result_fifo_empty	<= '0';                            	
 
 	-- TODO dieses Signal wird aus den content analysers kommen.
-	result_fifo_write      	<= debug_result_valid;
-	content_analysers_ready	<= '1';
+	--result_fifo_write      	<= debug_result_valid;
+	--packet_inspection_ready	<= '1';
 
 
 	-- define a "packet" as data, sof and eof signals.
@@ -267,18 +267,18 @@ begin
 	--result_evil     	<=	debug_result_valid; 
 
 
-	-- packet_inspection_inst : packet_inspection
-	-- port map(
-	--	rst                      	<=	in 	,
-	--	clk                      	<=	in 	,
-	--	rx_sof                   	<=	in 	,
-	--	rx_eof                   	<=	in 	,
-	--	rx_data                  	<=	in 	,
-	--	rx_data_valid            	<=	in 	,
-	--	rx_packetinspection_ready	<=	out	,
-	--	tx_result                	<=	out	,
-	--	tx_fifo_empty            	<=	out	
-	-- );
+	packet_inspection_inst : packet_inspection
+	port map(
+		rst                      	=>	rst,
+		clk                      	=>	clk,
+		rx_sof                   	=>	rx_ll_sof,
+		rx_eof                   	=>	rx_ll_eof,
+		rx_data                  	=>	rx_ll_data,
+		rx_data_valid            	=>	data_valid,
+		rx_packetinspection_ready	=>	packet_inspection_ready,
+		tx_result                	=>	result_fifo_write, -- TODO diese FIFO rausnehmen. 
+		tx_fifo_empty            	=>	result_fifo_empty
+	);
 
 
 	-- instatiate first FIFO for the packets
@@ -355,14 +355,13 @@ begin
 	--               	Read next byte from FIFO and send it.
 
 	sendercontrol_memzing : process(clk, rst)
-	-- TODO auf 0 setzen während dem RESETisieren:
-		-- rx...dst_rdy (im receiver control!!)
 
 	begin
 		-- register with asynchronous reset.
 		if (rst = RESET) then
 			sender_state   	<= idle;
-			--tx_ll_src_rdy	<= '0'; -- machts automatisch im idle state :-)
+			--tx_ll_src_rdy	<= '0'; -- automatically done while in "idle" state :-)
+			--rx_ll_dst_rdy <= '0'; -- is done in the receivercontrol part
 		elsif (rising_edge(clk)) then
 			--sender_last_state <= sender_state;
 			-- mach das nur, wenn es von einem Working State in den idle geht
@@ -458,21 +457,23 @@ begin
 					tx_ll_src_rdy    	<=	'0';
 				end if; 
 
-		end case;
-	end process; -- end sendercontrol_memless
+		end case; -- sender_state
+	end process; -- sendercontrol_memless
 
 
 
 	receivercontrol : process(	-- purely combinatorial, i.e. sensitive to everything.
+	                          	rst, 
 	                          	packet_fifo_full, 
 	                          	result_fifo_full,
-	                          	content_analysers_ready,
+	                          	packet_inspection_ready,
 	                          	rx_ll_src_rdy,
 	                          	receiver_ready)
 	begin
-		receiver_ready	<=	(not packet_fifo_full)	and (not result_fifo_full)	and content_analysers_ready;
-		data_valid    	<=	rx_ll_src_rdy         	and receiver_ready;
-		rx_ll_dst_rdy 	<=	receiver_ready;
+		receiver_ready 	<=	(not packet_fifo_full)	and (not result_fifo_full)	and packet_inspection_ready;
+		data_valid     	<=	rx_ll_src_rdy         	and receiver_ready;
+		--rx_ll_dst_rdy	<=	'0' when (rst = RESET)	else receiver_ready;
+		rx_ll_dst_rdy  	<=	receiver_ready;
 	end process; 
 
 

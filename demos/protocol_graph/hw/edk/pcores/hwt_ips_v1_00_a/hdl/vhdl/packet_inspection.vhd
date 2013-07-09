@@ -69,9 +69,9 @@ architecture implementation of packet_inspection is
 
 
 	-- the header has not to be checked by the IPS. 
-	signal	header_length        	:  	unsigned	range 0 to HEADER_MAX_LENGTH; -- in bytes
-	signal	skipheader_count     	:  	unsigned	range 0 to HEADER_MAX_LENGTH; -- in bytes
-	signal	skipheader_next_count	:  	unsigned	range 0 to HEADER_MAX_LENGTH; -- in bytes
+	signal	header_length        	:  	integer	range 0 to HEADER_MAX_LENGTH; -- in bytes
+	signal	skipheader_count     	:  	integer	range 0 to HEADER_MAX_LENGTH; -- in bytes
+	signal	skipheader_next_count	:  	integer	range 0 to HEADER_MAX_LENGTH; -- in bytes
 	type  	skipheader_type      	is(	idle, 
 	      	                     	   	next_header_byte, 
 	      	                     	   	next_data_byte); 
@@ -87,8 +87,9 @@ architecture implementation of packet_inspection is
 	signal	fifo_empty_1   	:	std_logic; 
 	signal	fifo_read_1    	:	std_logic; 
 	signal	fifo_write_1   	:	std_logic; 
-
-
+	-- create std_logic_vector's for the fifos.
+	signal	fifo_in_1 	:	std_logic_vector(RESULT_WIDTH-1 downto 0);
+	signal	fifo_out_1	:	std_logic_vector(RESULT_WIDTH-1 downto 0);
 
 
 	-- include components
@@ -113,10 +114,11 @@ architecture implementation of packet_inspection is
 	-- include FIFO component for the results
 	component fifo32 is
 	generic (
-		C_FIFO32_WORD_WIDTH     	:	integer	:= RESULT_WIDTH;
-		C_FIFO32_DEPTH          	:	integer := 4; -- TODO
-		CLOG2_FIFO32_DEPTH      	:	integer := 4; -- ceil(log2(depth))
-		C_FIFO32_SAFE_READ_WRITE	:	boolean	:= true
+		C_FIFO32_WORD_WIDTH         	:	integer	:= RESULT_WIDTH;
+		C_FIFO32_CONTROLSIGNAL_WIDTH	:	integer	:= 8; -- TODO
+		C_FIFO32_DEPTH              	:	integer := 4; -- TODO
+		CLOG2_FIFO32_DEPTH          	:	integer := 4; -- ceil(log2(depth))
+		C_FIFO32_SAFE_READ_WRITE    	:	boolean	:= true
 	);
 		port (
 			Rst           	:	in	std_logic;
@@ -148,10 +150,18 @@ begin
 	-- When the result is valid, write it to the FIFO.
 	-- Note: This assumes that each CA block only set this bit to '1' for one clock cycle. 
 	-- If this assumption is not valid anymore, one needs to adapt the following line s.t. only one result bit per packet is written to the FIFO.
-	fifo_write_1  <=	result_to_fifo_valid_1;
+	fifo_write_1  <=	result_valid_1;
 
 	-- currently, the header length is assumed to be constant.
-	header_length	<=	'1';	-- in bytes
+	header_length	<=	1;	-- in bytes
+
+	-- the result is std_logic, but the FIFO expects a std_logic_vector.
+	fifo_in_1(0)   	<=	result_1;
+	queued_result_1	<=	fifo_out_1(0); 
+
+
+
+
 
 
 	-- do not check the first n bytes, because they are in the header.
@@ -167,20 +177,20 @@ begin
 				if rx_sof='1' then
 					skipheader_next_state  <=	next_header_byte;
 				end if ;
-				skipheader_next_count	<=	header_length; 
+				skipheader_next_count	<=	header_length; -- start counter
 				check_me             	<=	'0';
 		
 			when next_header_byte =>
-				if (skipheader_count = 0) then
+				if (skipheader_count = 0) then -- stop criterion
 					skipheader_next_state	<=	next_data_byte;
-				elsif (rx_eof) then
+				elsif (rx_eof='1') then
 					skipheader_next_state	<=	idle; 
 				end if ;
-				skipheader_next_count	<=	skipheader_count-1; 
+				skipheader_next_count	<=	skipheader_count-1; -- iteration
 				check_me             	<=	'0';
 
 			when next_data_byte =>
-				if (rx_eof) then
+				if (rx_eof='1') then
 					skipheader_next_state	<=	idle; 
 				end if ;
 				skipheader_next_count	<=	skipheader_count; 
@@ -203,7 +213,7 @@ begin
 
 
 	-- instantiate all content analysis components
-	ca_utf8_nonshortest_form : ca_utf8_nonshortest_form
+	ca_utf8_nonshortest_form_inst : ca_utf8_nonshortest_form
 	port map(
 		-- The same signal for all content analysers.
 		rst          	=>	rst,
@@ -232,8 +242,8 @@ begin
 		FIFO32_S_Clk	=> clk,
 		FIFO32_M_Clk	=> clk,
 		-- TODO create generics for all ..._1's.
-		FIFO32_S_Data  	=> queued_result_1, 
-		FIFO32_M_Data  	=> result_1, 
+		FIFO32_S_Data  	=> fifo_out_1, 
+		FIFO32_M_Data  	=> fifo_in_1, 
 		--FIFO32_S_Fill	=> ,	-- unused, we need full and empty only.
 		--FIFO32_M_Rem 	=> ,	-- unused, we need full and empty only.
 		FIFO32_S_Full  	=> fifo_full_1, 
@@ -254,8 +264,8 @@ begin
 	aggregate_ready_signals : process(	--ca_ready_n,	fifo_full_n,
 	                                  	ca_ready_1,  	fifo_full_1)
 	begin
-		rx_packetinspection_ready	<=   	ca_ready_1	and	(fifo_full_1 = '0');
-		                         	--and	ca_ready_n	and	(fifo_full_n = '0') usw.
+		rx_packetinspection_ready	<=   	ca_ready_1	and	not fifo_full_1;
+		                         	--and	ca_ready_n	and	not fifo_full_n usw.
 	end process;
 
 

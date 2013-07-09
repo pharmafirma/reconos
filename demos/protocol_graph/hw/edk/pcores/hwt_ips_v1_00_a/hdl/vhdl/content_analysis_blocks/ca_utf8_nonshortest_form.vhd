@@ -92,10 +92,10 @@ architecture implementation of ca_utf8_nonshortest_form is
 	        	              	   	evil,
 	        	              	   	evil_wait, -- evil bit was already sent, 
 	        	              	   	examine_2nd_byte_3, -- for 3-byte chars.
-	        	              	   	examine_2nd_byte_4) -- for 4-byte chars.
+	        	              	   	examine_2nd_byte_4); -- for 4-byte chars.
 	signal  	state         	:  	detector_state; -- we only have one FSM in this entity, so this name is unambigous.
 	signal  	next_state    	:  	detector_state;
-	constant	SAFE_STATE    	:  	detector_state := evil; -- What to do when EOF arrives while analysing a multibyte character.
+	constant	SAFE_STATE    	:  	detector_state	:= evil; -- What to do when EOF arrives while analysing a multibyte character.
 
 
 
@@ -113,6 +113,8 @@ architecture implementation of ca_utf8_nonshortest_form is
 --				########   ########   ######    ####  ##    ## 
 begin
 
+	-- This content analyser is always ready :-).
+	rx_ca_ready	<=	'0' when (rst = RESET)	else '1'; 
 
 
 	memzing : process( clk, rst )
@@ -125,10 +127,52 @@ begin
 	end process ; -- memzing
 
 
-	memless : process( -- TODO )
+	memless : process(	state, 
+	                  	rx_data,
+	                  	rx_eof,
+	                  	-- rx_sof, --not needed, this entity just has to check as long as the data are valid.
+	                  	rx_data_valid)
 	begin
-		tx_result_valid <= '0';
-		if rx_data_valid then
+		-- default: Do not change anything. 
+		next_state     	<= state; 
+		tx_result_valid	<= '0';
+		--tx_result    	<= ; -- don't care as long as it is not valid.
+
+		-- The two states "good" and "evil" forward the result of the content analysis to the next upper entity. 
+		-- They have to be left after exactly one clock cycle because only one result bit per packet is allowed in the result FIFOs, 
+		-- All other states perform the actual content analysis. 
+		-- They shall only be processed when the data received is valid.
+
+		-- forward result and leave state on next clock cycle:
+		case state is
+			when good =>
+				-- give out good signal
+				tx_result      	<=	GOOD_FORWARD;
+				tx_result_valid	<=	'1';
+				-- directly jump back to default state.
+				-- EOF has already arrived i.e. we don't need any good_wait state.
+				next_state	<=	unknown_idle; 
+
+			when evil =>
+				-- send evil signal. 
+				tx_result      	<=	EVIL_DROP;
+				tx_result_valid	<=	'1';
+
+				
+				if (rx_eof = '1') then
+					next_state	<=	unknown_idle; 
+				else
+					-- wait if EOF has not arrived yet. 
+					next_state	<=	evil_wait; 
+				end if ;
+
+				when others => 
+					-- Do nothing. 
+					-- All other states will be checked in the "if rx_data_valid" statement below. 
+		end case; -- state
+
+		-- the actual content analysis: 
+		if (rx_data_valid='1') then 
 			case state is
 
 			-- search for multi-byte characters which could have been represented using a shorter form.
@@ -149,11 +193,10 @@ begin
 			-- 
 			-- as one can see, only the first 2 bytes are necessary to decide wether the packet is evil or not.
 			
-			
 				when unknown_idle =>
 					-- not known means "nothing evil found so far". 
 					-- i.e. when EOF arrives: jump to "good"
-					if rx_eof  then
+					if (rx_eof='1')  then
 						next_state	<=	good;
 					end if ;
 
@@ -176,7 +219,7 @@ begin
 
 					-- Look for the first byte of a 3-byte character: "1110 xxxx"
 					if (rx_data(7 downto 4) = "1110") then
-						if (rx_data(3 downto 0 = "0000")) then
+						if (rx_data(3 downto 0) = "0000") then
 							-- character can be up to 12 bits long, need to check the second byte.
 							next_state	<=	examine_2nd_byte_3; 
 						else
@@ -188,7 +231,7 @@ begin
 
 					-- Look for the first byte of a 4-byte character: "1111 0xxx"
 					if (rx_data(7 downto 3) = "11110") then
-						if (rx_data(2 downto 0 = "000")) then
+						if (rx_data(2 downto 0) = "000") then
 							-- character can be up to 18 bit long, need to check the second byte.
 							next_state	<=	examine_2nd_byte_3; 
 						else
@@ -199,8 +242,12 @@ begin
 								
 
 				when examine_2nd_byte_3 =>
+					-- It may happen that EOF arrives while inspecting a character. In this case, jump to a safe state.
+					if (rx_eof='1')  then
+						next_state	<=	SAFE_STATE;
+
 					-- examine the 2nd byte of a 3-byte character
-					if (rx_data(7 downto 5 = "100")) then
+					elsif (rx_data(7 downto 5) = "100") then
 						-- 11 bit character represented with 3 bytes instead of 2 }:-)
 						next_state	<=	evil;
 					else
@@ -210,8 +257,12 @@ begin
 
 
 				when examine_2nd_byte_4 =>
+					-- It may happen that EOF arrives while inspecting a character. In this case, jump to a safe state.
+					if (rx_eof='1')  then
+						next_state	<=	SAFE_STATE;
+
 					-- examine the 2nd byte of a 3-byte character
-					if (rx_data(7 downto 4 = "1000")) then
+					elsif (rx_data(7 downto 4) = "1000") then
 						-- 16 bit character represented with 4 bytes instead of 3 }:-)
 						next_state	<=	evil;
 					else
@@ -223,47 +274,19 @@ begin
 				when evil_wait =>
 					-- just wait for EOF.
 
-					if rx_eof then
+					if (rx_eof = '1') then
 						next_state	<=	unknown_idle; 
 					else
 						next_state	<=	evil_wait; 
 					end if ;
+
+				when others => -- i.e. "good" and "evil" 
+					-- Do nothing. 
+					-- These states are already covered before the "if rx_data_valid" statement.
 				
 			end case; -- state
-		else
-			-- Do not change state as long as the data received are not valid.
-			next_state	<=	state; 
 		end if ; -- rx_data_valid
-
-		-- The following two states are not part of the above if-statement because:
-			-- They forward the result of the content analysis to the next upper entity.
-			-- Only one result bit per packet is allowed in the result FIFOs. 
-			-- So, they have to be left after exactly one clock cycle.
-		case state is
-			when good =>
-				-- give out good signal
-				result         	<=	GOOD_FORWARD;
-				tx_result_valid	<=	'1';
-				-- directly jump back to default state.
-				-- EOF has already arrived i.e. we don't need any good_wait state.
-				next_state	<=	unknown_idle; 
-
-
-			when evil =>
-				-- send evil signal. 
-				result         	<=	EVIL_DROP;
-				tx_result_valid	<=	'1';
-
-				
-				if rx_eof then
-					next_state	<=	unknown_idle; 
-				else
-					-- wait if EOF has not arrived yet. 
-					next_state	<=	evil_wait; 
-				end if ;
-
-		end case; -- state
-	end process ; -- memless
+	end process; -- memless
 
 
 

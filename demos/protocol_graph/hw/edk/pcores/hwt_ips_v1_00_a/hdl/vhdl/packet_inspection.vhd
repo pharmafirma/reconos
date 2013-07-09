@@ -36,7 +36,8 @@ entity packet_inspection is
 		--result_good            	:	out	std_logic;
 		--result_evil            	:	out	std_logic;
 		tx_result                	:	out	std_logic; -- from the outside this interface looks like a FIFO
-		tx_fifo_empty            	:	out	std_logic
+		tx_fifo_empty            	:	out	std_logic;
+		tx_fifo_read             	:	in 	std_logic
 	);
 end packet_inspection;
 
@@ -78,6 +79,8 @@ architecture implementation of packet_inspection is
 	signal	skipheader_state     	:  	skipheader_type;	
 	signal	skipheader_next_state	:  	skipheader_type; 
 	signal	check_me             	:  	std_logic; -- "data_valid" signal for the content analyser blocks. Will be set to 1 when the header is over :).
+	signal	fifo_read            	:  	std_logic; -- one fifo_read for all FIFOs is enough.
+	signal	fifo_empty           	:  	std_logic; -- intermediate signal for tx_fifo_empty
 	-- to be "generic'ised" one day...
 	signal	ca_ready_1     	:	std_logic; -- n'th content analyser block ready
 	signal	result_1       	:	std_logic; -- result output of the n'tn content analyser block, input of the n'th FIFO
@@ -85,7 +88,6 @@ architecture implementation of packet_inspection is
 	signal	queued_result_1	:	std_logic; -- queued version of result_1, output of the FIFO
 	signal	fifo_full_1    	:	std_logic; -- read, write, full and empty signal for the n'th FIFO
 	signal	fifo_empty_1   	:	std_logic; 
-	signal	fifo_read_1    	:	std_logic; 
 	signal	fifo_write_1   	:	std_logic; 
 	-- create std_logic_vector's for the fifos.
 	signal	fifo_in_1 	:	std_logic_vector(RESULT_WIDTH-1 downto 0);
@@ -159,8 +161,9 @@ begin
 	fifo_in_1(0)   	<=	result_1;
 	queued_result_1	<=	fifo_out_1(0); 
 
-
-
+	-- just read FIFOs when they are not empty.
+	fifo_read    	<=	tx_fifo_read	and not fifo_empty; 
+	tx_fifo_empty	<=	fifo_empty; 
 
 
 
@@ -248,7 +251,7 @@ begin
 		--FIFO32_M_Rem 	=> ,	-- unused, we need full and empty only.
 		FIFO32_S_Full  	=> fifo_full_1, 
 		FIFO32_M_Empty 	=> fifo_empty_1, 
-		FIFO32_S_Rd    	=> fifo_read_1, 
+		FIFO32_S_Rd    	=> fifo_read, 
 		FIFO32_M_Wr    	=> fifo_write_1
 	);
 

@@ -77,23 +77,25 @@ architecture implementation of ips is
 	--			 ######   ####   ######    ##    ##  ##     ##  ######## 
 	-- signal declarations
 
---	signal	test                   	:	std_logic	:= '0'; 
-  	signal	packet_fifo_full       	:	std_logic;
-  	signal	packet_fifo_empty      	:	std_logic;
-  	signal	packet_fifo_read       	:	std_logic;
-  	signal	packet_fifo_write      	:	std_logic;
-  	signal	packet_fifo_in_packet  	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
-  	signal	packet_fifo_out_packet 	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
-  	signal	out_packet_eof         	:	std_logic; -- intermediate signals, needed because we need to write and read to them. 
-  	signal	result_fifo_full       	:	std_logic;
-  	signal	result_fifo_empty      	:	std_logic;
-  	signal	result_fifo_read       	:	std_logic;
-  	signal	result_fifo_write      	:	std_logic;
-  	signal	result_fifo_in_packet  	:	std_logic_vector(RESULT_WIDTH-1 downto 0); 
-  	signal	result_fifo_out_packet 	:	std_logic_vector(RESULT_WIDTH-1 downto 0); 
-  	signal	data_valid             	:	std_logic;
-  	signal	receiver_ready         	:	std_logic; -- intermediate signals, needed because we need to write and read to them. 
-  	signal	packet_inspection_ready	:	std_logic;
+--	signal  	test                   	:	std_logic	:= '0'; 
+  	signal  	packet_fifo_full       	:	std_logic;
+  	signal  	packet_fifo_empty      	:	std_logic;
+  	signal  	packet_fifo_read       	:	std_logic;
+  	signal  	packet_fifo_write      	:	std_logic;
+  	signal  	packet_fifo_in_packet  	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
+  	signal  	packet_fifo_out_packet 	:	std_logic_vector(PACKET_WIDTH-1 downto 0); 
+  	signal  	out_packet_eof         	:	std_logic; -- intermediate signals, needed because we need to write and read to them. 
+  	--signal	result_fifo_full       	:	std_logic;
+  	signal  	result_fifo_empty      	:	std_logic;
+  	signal  	result_fifo_read       	:	std_logic;
+  	--signal	result_fifo_write      	:	std_logic;
+  	--signal	result_fifo_in_packet  	:	std_logic_vector(RESULT_WIDTH-1 downto 0); 
+  	signal  	result_fifo_out_packet 	:	std_logic_vector(RESULT_WIDTH-1 downto 0); 
+  	signal  	data_valid             	:	std_logic; -- internal input data valid signal. See receivercontrol for what it means.
+  	signal  	receiver_ready         	:	std_logic; -- intermediate signal for rx_ll_dst_rdy, needed because we need to write and read to them. 
+  	signal  	packet_inspection_ready	:	std_logic;
+
+
 
 
   	-- sender control states
@@ -208,7 +210,8 @@ architecture implementation of ips is
 		rx_data_valid            	:	in 	std_logic;
 		rx_packetinspection_ready	:	out	std_logic;
 		tx_result                	:	out	std_logic; -- from the outside this interface looks like a FIFO
-		tx_fifo_empty            	:	out	std_logic
+		tx_fifo_empty            	:	out	std_logic;
+		tx_fifo_read             	:	in 	std_logic
 	);
 	end component;
 
@@ -257,8 +260,8 @@ begin
 	packet_fifo_write                     	<=	data_valid;
 
 	-- the results need to be queued too, s.t. new results can be created while a FIFO'ed packet is being sent.
-	result_fifo_in_packet(0)  	<=	result_before_fifo;       	-- packets marked as "good"...
-	result                    	<=	result_fifo_out_packet(0);	-- ...can be sent.
+	--result_fifo_in_packet(0)	<=	result_before_fifo;       	-- packets marked as "good"...
+	--result                  	<=	result_fifo_out_packet(0);	-- ...can be sent.
 	--result_fifo_in_packet(1)	<=	result_evil;              	-- packets marked as "evil"...
 	--result_drop             	<=	result_fifo_out_packet(1);	-- ...have to be dropped.
 
@@ -276,8 +279,9 @@ begin
 		rx_data                  	=>	rx_ll_data,
 		rx_data_valid            	=>	data_valid,
 		rx_packetinspection_ready	=>	packet_inspection_ready,
-		tx_result                	=>	result_fifo_write, -- TODO diese FIFO rausnehmen. 
-		tx_fifo_empty            	=>	result_fifo_empty
+		tx_result                	=>	result,
+		tx_fifo_empty            	=>	result_fifo_empty,
+		tx_fifo_read             	=>	result_fifo_read
 	);
 
 
@@ -308,27 +312,28 @@ begin
 
 
 	-- instantiate a second FIFO for the results 
-	result_fifo : fifo32
-	generic map(
-		C_FIFO32_WORD_WIDTH           	=> RESULT_WIDTH,
-		C_FIFO32_DEPTH                	=> 42,	-- TODO 
-		CLOG2_FIFO32_DEPTH            	=> 11,	-- TODO 
-		--C_FIFO32_CONTROLSIGNAL_WIDTH	=> ;  	-- unused, as we need the full and empty signals only.
-		C_FIFO32_SAFE_READ_WRITE      	=> true
-	) 
-	port map(
-		Rst            	=> rst, 
-		FIFO32_S_Clk   	=> clk,
-		FIFO32_M_Clk   	=> clk,
-		FIFO32_S_Data  	=> result_fifo_out_packet,
-		FIFO32_M_Data  	=> result_fifo_in_packet, 
-		--FIFO32_S_Fill	=> ,                 	-- unused, we need full and empty only.
-		--FIFO32_M_Rem 	=> ,                 	-- unused, we need full and empty only.
-		FIFO32_S_Full  	=> result_fifo_full, 	-- Note that the result FIFO can still be empty although there is a packet in the packet FIFO.
-		FIFO32_M_Empty 	=> result_fifo_empty,	-- This happens if a content analysis takes longer than the packet, e.g. due to pipelining.
-		FIFO32_S_Rd    	=> result_fifo_read, 
-		FIFO32_M_Wr    	=> result_fifo_write
-	);
+	--> not needed anymore as the packet inspection provides this interface.
+	-- result_fifo : fifo32
+	-- generic map(
+	--	C_FIFO32_WORD_WIDTH           	=> RESULT_WIDTH,
+	--	C_FIFO32_DEPTH                	=> 42,	-- TODO 
+	--	CLOG2_FIFO32_DEPTH            	=> 11,	-- TODO 
+	--	--C_FIFO32_CONTROLSIGNAL_WIDTH	=> ;  	-- unused, as we need the full and empty signals only.
+	--	C_FIFO32_SAFE_READ_WRITE      	=> true
+	-- ) 
+	-- port map(
+	--	Rst            	=> rst, 
+	--	FIFO32_S_Clk   	=> clk,
+	--	FIFO32_M_Clk   	=> clk,
+	--	FIFO32_S_Data  	=> result_fifo_out_packet,
+	--	FIFO32_M_Data  	=> result_fifo_in_packet, 
+	--	--FIFO32_S_Fill	=> ,                 	-- unused, we need full and empty only.
+	--	--FIFO32_M_Rem 	=> ,                 	-- unused, we need full and empty only.
+	--	FIFO32_S_Full  	=> result_fifo_full, 	-- Note that the result FIFO can still be empty although there is a packet in the packet FIFO.
+	--	FIFO32_M_Empty 	=> result_fifo_empty,	-- This happens if a content analysis takes longer than the packet, e.g. due to pipelining.
+	--	FIFO32_S_Rd    	=> result_fifo_read, 
+	--	FIFO32_M_Wr    	=> result_fifo_write
+	-- );
 
 
 
@@ -465,15 +470,15 @@ begin
 	receivercontrol : process(	-- purely combinatorial, i.e. sensitive to everything.
 	                          	rst, 
 	                          	packet_fifo_full, 
-	                          	result_fifo_full,
+	                          	--result_fifo_full,
 	                          	packet_inspection_ready,
 	                          	rx_ll_src_rdy,
 	                          	receiver_ready)
 	begin
-		receiver_ready 	<=	(not packet_fifo_full)	and (not result_fifo_full)	and packet_inspection_ready;
-		data_valid     	<=	rx_ll_src_rdy         	and receiver_ready;
-		--rx_ll_dst_rdy	<=	'0' when (rst = RESET)	else receiver_ready;
-		rx_ll_dst_rdy  	<=	receiver_ready;
+		receiver_ready         	<=	(not packet_fifo_full)	and packet_inspection_ready; --and (not result_fifo_full) 
+		data_valid             	<=	rx_ll_src_rdy         	and receiver_ready;
+		-- TODO: receiver_ready	<=	'0' when (rst = RESET)	else bla bla...;
+		rx_ll_dst_rdy          	<=	receiver_ready;
 	end process; 
 
 

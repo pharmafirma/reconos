@@ -266,8 +266,8 @@ begin
 	--result_drop             	<=	result_fifo_out_packet(1);	-- ...have to be dropped.
 
 	-- TODO leDebug
-	result_before_fifo	<=	debug_result_result; 
-	--result_evil     	<=	debug_result_valid; 
+	--result_before_fifo	<=	debug_result_result; 
+	--result_evil       	<=	debug_result_valid; 
 
 
 	packet_inspection_inst : packet_inspection

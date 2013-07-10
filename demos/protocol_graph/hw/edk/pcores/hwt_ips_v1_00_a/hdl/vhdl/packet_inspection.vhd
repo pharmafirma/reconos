@@ -51,7 +51,7 @@ architecture implementation of packet_inspection is
 	constant	GOOD_FORWARD     	:	std_logic	:= '1'; -- used constants instead of a "type" to simplify queuing.
 	constant	EVIL_DROP        	:	std_logic	:= '0';
 	constant	RESULT_WIDTH     	:	integer  	:= 1; -- in bits (good / evil).
-	constant	HEADER_MAX_LENGTH	:	integer  	:= 3; -- Maximum length of header data (in bytes).
+	constant	HEADER_MAX_LENGTH	:	integer  	:= 42; -- Maximum length of header data (in bytes).
 
 
 
@@ -70,17 +70,19 @@ architecture implementation of packet_inspection is
 
 
 	-- the header has not to be checked by the IPS. 
-	signal	header_length        	:  	integer	range 0 to HEADER_MAX_LENGTH; -- in bytes
-	signal	skipheader_count     	:  	integer	range 0 to HEADER_MAX_LENGTH; -- in bytes
-	signal	skipheader_next_count	:  	integer	range 0 to HEADER_MAX_LENGTH; -- in bytes
-	type  	skipheader_type      	is(	idle, 
-	      	                     	   	next_header_byte, 
-	      	                     	   	next_data_byte); 
-	signal	skipheader_state     	:  	skipheader_type;	
-	signal	skipheader_next_state	:  	skipheader_type; 
-	signal	check_me             	:  	std_logic; -- "data_valid" signal for the content analyser blocks. Will be set to 1 when the header is over :).
-	signal	fifo_read            	:  	std_logic; -- one fifo_read for all FIFOs is enough.
-	signal	fifo_empty           	:  	std_logic; -- intermediate signal for tx_fifo_empty
+	signal 	header_length        	:  	integer	range 0 to HEADER_MAX_LENGTH+2; -- in bytes
+	signal 	skipheader_count     	:  	integer	range 0 to HEADER_MAX_LENGTH+2; -- in bytes
+	signal 	skipheader_next_count	:  	integer	range 0 to HEADER_MAX_LENGTH+2; -- in bytes
+	-- type	skipheader_type      	is(	idle, 
+	--     	                     	   	next_header_byte, 
+	--     	                     	   	next_data_byte); 
+	type   	skipheader_type      	is(	header_bytes, 
+	       	                     	   	data_bytes); 
+	signal 	skipheader_state     	:  	skipheader_type;	
+	signal 	skipheader_next_state	:  	skipheader_type; 
+	signal 	check_me             	:  	std_logic; -- "data_valid" signal for the content analyser blocks. Will be set to 1 when the header is over :).
+	signal 	fifo_read            	:  	std_logic; -- one fifo_read for all FIFOs is enough.
+	signal 	fifo_empty           	:  	std_logic; -- intermediate signal for tx_fifo_empty
 	-- to be "generic'ised" one day...
 	signal	ca_ready_1     	:	std_logic; -- n'th content analyser block ready
 	signal	result_1       	:	std_logic; -- result output of the n'tn content analyser block, input of the n'th FIFO
@@ -152,10 +154,10 @@ begin
 	-- When the result is valid, write it to the FIFO.
 	-- Note: This assumes that each CA block only set this bit to '1' for one clock cycle. 
 	-- If this assumption is not valid anymore, one needs to adapt the following line s.t. only one result bit per packet is written to the FIFO.
-	fifo_write_1  <=	result_valid_1;
+	fifo_write_1	<=	result_valid_1;
 
 	-- currently, the header length is assumed to be constant.
-	header_length	<=	1;	-- in bytes
+	header_length	<=	1; -- in bytes
 
 	-- the result is std_logic, but the FIFO expects a std_logic_vector.
 	fifo_in_1(0)   	<=	result_1;
@@ -171,43 +173,105 @@ begin
 	skipheader_memless : process(	skipheader_state, 
 	                             	rx_sof, 
 	                             	rx_eof, 
+	                             	rx_data_valid, 
 	                             	skipheader_count,
 	                             	header_length)
 	begin
-		case skipheader_state is
-		
-			when idle =>
-				if rx_sof='1' then
-					skipheader_next_state  <=	next_header_byte;
-				end if ;
-				skipheader_next_count	<=	header_length; -- start counter
-				check_me             	<=	'0';
-		
-			when next_header_byte =>
-				if (skipheader_count = 0) then -- stop criterion
-					skipheader_next_state	<=	next_data_byte;
-				elsif (rx_eof='1') then
-					skipheader_next_state	<=	idle; 
-				end if ;
-				skipheader_next_count	<=	skipheader_count-1; -- iteration
-				check_me             	<=	'0';
+		-- default: do nothing.
+		skipheader_next_state	<=	skipheader_state;
+		skipheader_next_count	<=	skipheader_count; 
+		check_me             	<=	'0';
 
-			when next_data_byte =>
-				if (rx_eof='1') then
-					skipheader_next_state	<=	idle; 
-				end if ;
-				skipheader_next_count	<=	skipheader_count; 
-				check_me             	<=	'1';
-		
-		end case ;
+		if (rx_data_valid = '1') then
+			case skipheader_state is
+
+				when header_bytes =>
+					-- wait for SOF (on first byte only):
+					if (rx_sof = '1' or skipheader_count > 1) then
+						skipheader_next_count	<=	skipheader_count + 1;
+						if (skipheader_count >= header_length) then 
+							skipheader_next_state	<=	data_bytes; 
+						else
+							skipheader_next_state	<=	header_bytes; 
+						end if; 
+					-- else: 
+						-- do nothing and continue waiting for SOF.
+					end if; 
+
+				when data_bytes =>
+					check_me	<=	'1';
+					-- wait for EOF.
+					if (rx_eof = '1') then
+						-- special case: if header length is 0, we won't need to skip anything.
+						if (header_length = 0) then
+							skipheader_next_state	<=	data_bytes;
+						else
+							skipheader_next_state	<=	header_bytes;
+							skipheader_next_count	<=	1; -- init counter
+						end if; 
+					end if; 
+
+				-- when idle =>
+				--	--skipheader_next_count	<=	header_length; -- start counter
+				--	if rx_sof='1' then
+
+
+
+
+				--		--  _____ ____  ____  ____ 
+				--		-- /__ __Y  _ \/  _ \/  _ \
+				--		--   / \ | / \|| | \|| / \|
+				--		--   | | | \_/|| |_/|| \_/|
+				--		--   \_/ \____/\____/\____/
+				  	      
+
+
+
+
+				--		-- TODO: Implement special handling for header length 0 and 1.         	--
+				--		---- oder einfach nochmals neu überlegen... Ich denke 2 states reichen.	--
+
+
+
+				--		skipheader_next_state	<=	next_header_byte;
+				--		-- start counter at byte 2.
+				--		-- one byte, because we will miss the first data byte. It arrives at the same time when SOF arrives.
+				--		-- the second byte because we start counting at 1, not on 0.
+				--		skipheader_next_count	<=	2;
+				--		-- the 
+				--		--old: skipheader_count-1; -- iteration
+				--	end if ;
+				--	check_me	<=	'0';
+			
+				-- when next_header_byte =>
+				--	skipheader_next_count	<=	skipheader_count+1; -- iteration
+				--	check_me             	<=	'0';
+				--	if (skipheader_count >= header_length) then -- stop criterion
+				--		skipheader_next_state	<=	next_data_byte;
+				--	elsif (rx_eof='1') then
+				--		skipheader_next_state	<=	idle; 
+				--	end if ;
+
+				-- when next_data_byte =>
+				--	if (rx_eof='1') then
+				--		skipheader_next_state	<=	idle; 
+				--	end if;
+				--	skipheader_next_count	<=	skipheader_count; -- don't continue counting to prevent overflow.
+				--	check_me             	<=	'1';
+			
+			end case ;
+		else
+			skipheader_next_state	<= skipheader_state; 
+		end if;
 	end process ; -- skipheader_memless
 
 
 	skipheader_memzing : process( clk, rst )
 	begin
 	    if rst = RESET then
-			skipheader_count	<= header_length;
-			skipheader_state	<= idle;
+			skipheader_count  	<= 1; -- init counter
+			--skipheader_state	<= idle;
+			skipheader_state  	<= header_bytes; 
 	    elsif rising_edge(clk) then
 			skipheader_count	<= skipheader_next_count;
 			skipheader_state	<= skipheader_next_state;

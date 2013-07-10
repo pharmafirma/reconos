@@ -233,7 +233,7 @@ begin
 					if (rx_data(7 downto 3) = "11110") then
 						if (rx_data(2 downto 0) = "000") then
 							-- character can be up to 18 bit long, need to check the second byte.
-							next_state	<=	examine_2nd_byte_3; 
+							next_state	<=	examine_2nd_byte_4; 
 						else
 							-- 19 bit or longer, i.e. this is a regular 4-byte character O:-)
 							next_state	<=	unknown_idle; 

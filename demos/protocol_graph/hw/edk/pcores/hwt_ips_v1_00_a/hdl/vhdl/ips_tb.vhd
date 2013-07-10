@@ -38,6 +38,10 @@ architecture RTL of ips_tb is
 	constant	RESET                  	: std_logic	:= '1'; -- define if rst is active low or active high
 	constant	GOOD_FORWARD           	: std_logic	:= '1'; -- used constants instead of a "type" to simplify queuing.
 	constant	EVIL_DROP              	: std_logic	:= '0';
+	-- a spacer, can be used in packets
+	constant	SPACER	: std_logic_vector(7 downto 0)	:= x"58"; -- capital X
+
+
 	
 	-- some debug signals
 	signal                         	debug_fifo_read   :	std_logic;
@@ -80,73 +84,110 @@ begin
 	rx_ll_dst_rdy  <= '1', '0' after 1.78 ms, '1' after 2.5111 ms;
 
 	-- TEST: sender not ready
-	tx_ll_src_rdy	<= '1', '0' after 2.3333 ms;
+	tx_ll_src_rdy	<= '1', '0' after 2.3333 ms, '1' after 3.2222 ms;
 
 
 
 	-- FSM which generates packets. 
 
 
-	packet_tx_payload <= (	-- Payload    	SOF 	EOF
-	                      	--("01100001",	"1",	"0")
-	                      	x"de", -- four dead beef :-(
-	                      	x"ad", 
-	                      	x"be", 
-	                      	x"ef", 
-	                      	x"00", 
-	                      	x"de", 
-	                      	x"ad", 
-	                      	x"be", 
-	                      	x"ef", 
-	                      	x"00", 
-	                      	x"de", 
-	                      	x"ad", 
-	                      	x"be", 
-	                      	x"ef", 
-	                      	x"00", 
-	                      	x"de", 
-	                      	x"ad", 
-	                      	x"be", 
-	                      	x"ef", 
-	                      	x"00",	-- and 2 counters
-	                      	x"11",
-	                      	x"22", 
-	                      	x"33", 
-	                      	x"44", 
-	                      	x"55", 
-	                      	x"66", 
-	                      	x"77", 
-	                      	x"88", 
-	                      	x"99", 
-	                      	x"aa", 
-	                      	x"bb", 
-	                      	x"cc", 
-	                      	x"dd", 
-	                      	x"ee", 
-	                      	x"ff", 
-	                      	x"00",
-	                      	x"11",
-	                      	x"22", 
-	                      	x"33", 
-	                      	x"44", 
-	                      	x"55", 
-	                      	x"66", 
-	                      	x"77", 
-	                      	x"88", 
-	                      	x"99", 
-	                      	x"aa", 
-	                      	x"bb", 
-	                      	x"cc", 
-	                      	x"dd", 
-	                      	x"ee", 
-	                      	x"ff", 
-	                      	-- "00001101",
-	                      	-- "00000101",
-	                      	-- "00101101",
-	                      	-- "00101101",
-	                      	-- "00001101",
-	                      	-- "11111111",
-	                      	others => "00000000"
+	-- packet_tx_payload <= (	x"de", -- four dead beef :-(
+	--                       	x"ad", 
+	--                       	x"be", 
+	--                       	x"ef", 
+	--                       	x"00", 
+	--                       	x"de", 
+	--                       	x"ad", 
+	--                       	x"be", 
+	--                       	x"ef", 
+	--                       	x"00", 
+	--                       	x"de", 
+	--                       	x"ad", 
+	--                       	x"be", 
+	--                       	x"ef", 
+	--                       	x"00", 
+	--                       	x"de", 
+	--                       	x"ad", 
+	--                       	x"be", 
+	--                       	x"ef", 
+	--                       	x"00",	-- and 2 counters
+	--                       	x"11",
+	--                       	x"22", 
+	--                       	x"33", 
+	--                       	x"44", 
+	--                       	x"55", 
+	--                       	x"66", 
+	--                       	x"77", 
+	--                       	x"88", 
+	--                       	x"99", 
+	--                       	x"aa", 
+	--                       	x"bb", 
+	--                       	x"cc", 
+	--                       	x"dd", 
+	--                       	x"ee", 
+	--                       	x"ff", 
+	--                       	x"00",
+	--                       	x"11",
+	--                       	x"22", 
+	--                       	x"33", 
+	--                       	x"44", 
+	--                       	x"55", 
+	--                       	x"66", 
+	--                       	x"77", 
+	--                       	x"88", 
+	--                       	x"99", 
+	--                       	x"aa", 
+	--                       	x"bb", 
+	--                       	x"cc", 
+	--                       	x"dd", 
+	--                       	x"ee", 
+	--                       	x"ff", 
+	--                       	others => "00000000"
+	-- );
+
+
+
+	packet_tx_payload <= (	-- Some UTF-8 stuff
+	                      	x"61",	-- a
+	                      	x"62",	-- b
+	                      	x"63",	-- c
+	                      	x"64",	-- d
+	                      	x"65",	-- e
+	                      	x"66",	-- f
+	                      	x"67",	-- g
+	                      	x"68",	-- h
+	                      	x"69",	-- i
+	                      	SPACER, 
+	                      	SPACER, 
+	                      	SPACER, 
+	                      	-- some invalid bullshit, but not a non-shortest form.
+	                      	x"49", x"3a", -- I:
+	                      	x"9f", x"92", x"a9",
+	                      	SPACER, 
+	                      	SPACER, 
+	                      	SPACER, 
+	                      	-- and some valid (multibyte) characters: 
+	                      	x"56", x"3a", -- V:
+	                      	--x"", x"", x"", x"", SPACER,      	-- boilerplate
+	                      	x"5f", SPACER,                     	-- _
+	                      	x"c3", x"a4", SPACER,              	-- a Umlaut a.k.a. 'LATIN SMALL LETTER A WITH DIAERESIS' (U+00E4)
+	                      	x"e6", x"b8", x"af", SPACER,       	-- Han Character 'port, harbor; small stream; bay' (U+6E2F)
+	                      	x"f0", x"9f", x"92", x"a9", SPACER,	-- 'PILE OF POO' (U+1F4A9)
+	                      	SPACER, 
+	                      	SPACER, 
+	                      	SPACER, 
+	                      	-- The attack:
+	                      	x"41", x"3a",                	-- A:
+	                      	x"2e",                       	-- ../
+	                      	x"2e",                       	
+	                      	x"2f",                       	
+	                      	SPACER,                      	
+	                      	x"2e",                       	-- ../ again, but with the / as... (uncomment one)
+	                      	x"2e",                       	
+	                      	--x"c0", x"af",              	-- ...2-byte...
+	                      	x"e0", x"80", x"af",         	-- ...3-byte...
+	                      	--x"f0", x"80", x"80", x"af",	-- ...or 4-byte non-shortest form.
+	                      	others => SPACER
 	);
 
 
@@ -169,7 +210,7 @@ begin
 		case packet_state is
 
 			when P_STATE_INIT  => 
-				tx_ll_sof	<= '1';
+				tx_ll_sof	<= '1'; -- test without SOF
 				if tx_ll_dst_rdy = '1' then
 					packet_state_next	<= P_STATE_SEND;
 					cur_len_next     	<= 1;
@@ -189,17 +230,12 @@ begin
 
 				-- define here, when to send the "good" resp "bad" signal.
 				-- e.g. if cur_len = packet_len-5 then debug_result_valid	<= '1'; end if; 
-				if cur_len = packet_len-5 then
-					debug_result_result	<= EVIL_DROP;
-					debug_result_valid 	<= '1';
-				end if;
+				-- if cur_len = packet_len-5 then
+				--	debug_result_result	<= EVIL_DROP;
+				--	debug_result_valid 	<= '1';
+				-- end if;
 
-				
 		end case;
-
-
-
-
 	end process;
 
 

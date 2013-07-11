@@ -173,6 +173,10 @@ begin
 
 		-- the actual content analysis: 
 		if (rx_data_valid='1') then 
+			-- default:
+			next_state     	<=	SAFE_STATE; 
+			tx_result_valid	<=	'0';
+
 			case state is
 
 			-- search for multi-byte characters which could have been represented using a shorter form.
@@ -193,14 +197,20 @@ begin
 			-- 
 			-- as one can see, only the first 2 bytes are necessary to decide wether the packet is evil or not.
 			
+
 				when unknown_idle =>
-					-- default:
-					next_state	<=	SAFE_STATE; 
+
+					-- TODO probably there would be a more elegant way to the the EOF handling...
+
 
 					-- Bytes which contain 7-bit ASCII characters "0xxx xxxx" are valid O:-)
 					-- Latter bytes of a multibyte character "10xx xxxx" can be ignored since the first bytes have already been checked.
 					if (rx_data(7) = '0' or rx_data(7 downto 6) = "10") then
-						next_state	<=	unknown_idle; 
+						if (rx_eof = '1') then
+							next_state	<=	good; 
+						else
+							next_state	<=	unknown_idle; 
+						end if ;
 					end if ;
 
 					-- Look for the first byte of a 2-byte character: "110x xxxx"
@@ -210,7 +220,11 @@ begin
 							next_state	<=	evil;
 						else
 							-- a regular 2-byte character O:-)
-							next_state	<=	unknown_idle; 
+							if (rx_eof = '1') then
+								next_state	<=	good; 
+							else
+								next_state	<=	unknown_idle; 
+							end if ;
 						end if ;
 					end if ;
 
@@ -218,10 +232,18 @@ begin
 					if (rx_data(7 downto 4) = "1110") then
 						if (rx_data(3 downto 0) = "0000") then
 							-- character can be up to 12 bits long, need to check the second byte.
-							next_state	<=	examine_2nd_byte_3; 
+							if (rx_eof = '1') then
+								next_state	<=	SAFE_STATE; 
+							else
+								next_state	<=	examine_2nd_byte_3; 
+							end if ;
 						else
 							-- 13 bit or longer, i.e. this is a regular 3-byte character O:-)
-							next_state	<=	unknown_idle; 
+							if (rx_eof = '1') then
+								next_state	<=	good; 
+							else
+								next_state	<=	unknown_idle; 
+							end if ;
 						end if ;
 								
 					end if ;
@@ -230,54 +252,74 @@ begin
 					if (rx_data(7 downto 3) = "11110") then
 						if (rx_data(2 downto 0) = "000") then
 							-- character can be up to 18 bit long, need to check the second byte.
-							next_state	<=	examine_2nd_byte_4; 
+							if (rx_eof = '1') then
+								next_state	<=	SAFE_STATE; 
+							else
+								next_state	<=	examine_2nd_byte_4; 
+							end if ;
 						else
 							-- 19 bit or longer, i.e. this is a regular 4-byte character O:-)
-							next_state	<=	unknown_idle; 
+							if (rx_eof = '1') then
+								next_state	<=	good; 
+							else
+								next_state	<=	unknown_idle; 
+							end if ;
 						end if ;
 					end if ;
 
 					-- EOF handling.
 					-- not known means "nothing evil found so far". 
 					-- i.e. when EOF arrives: jump to "good"
-					if (next_state = SAFE_STATE or next_state = unknown_idle) then
-						if (rx_eof = '1') then
-						
-						end if ;
-						-- default for EOF.
-						next_state	<=	good; 
-					else
-						next_state	<= SAFE_STATE; 
-					end if; 
+					-- if (rx_eof = '1') then
+					--         	next_state	<=	good; 
+					-- end if ;	          	  			
+
+					-- if (next_state = SAFE_STATE or next_state = unknown_idle) then
+					--	if (rx_eof = '1') then
+					  	
+					--	end if ;
+					--	-- default for EOF.
+					--	next_state	<=	good; 
+					-- else
+					--	next_state	<= SAFE_STATE; 
+					-- end if; 
 								
 
 				when examine_2nd_byte_3 =>
 					-- It may happen that EOF arrives while inspecting a character. In this case, jump to a safe state.
-					if (rx_eof='1')  then
-						next_state	<=	SAFE_STATE;
+					-- if (rx_eof='1')  then
+					--	next_state	<=	SAFE_STATE;
 
 					-- examine the 2nd byte of a 3-byte character
-					elsif (rx_data(7 downto 5) = "100") then
+					if (rx_data(7 downto 5) = "100") then
 						-- 11 bit character represented with 3 bytes instead of 2 }:-)
 						next_state	<=	evil;
 					else
 						-- regular 3-byte character
-						next_state	<=	unknown_idle; 
+						if (rx_eof = '1') then
+							next_state	<=	good; 
+						else
+							next_state	<=	unknown_idle; 
+						end if ;
 					end if ;
 
 
 				when examine_2nd_byte_4 =>
 					-- It may happen that EOF arrives while inspecting a character. In this case, jump to a safe state.
-					if (rx_eof='1')  then
-						next_state	<=	SAFE_STATE;
+					-- if (rx_eof='1')  then
+					--	next_state	<=	SAFE_STATE;
 
 					-- examine the 2nd byte of a 3-byte character
-					elsif (rx_data(7 downto 4) = "1000") then
+					if (rx_data(7 downto 4) = "1000") then
 						-- 16 bit character represented with 4 bytes instead of 3 }:-)
 						next_state	<=	evil;
 					else
 						-- regular 4-byte character
-						next_state	<=	unknown_idle; 
+						if (rx_eof = '1') then
+							next_state	<=	good; 
+						else
+							next_state	<=	unknown_idle; 
+						end if ;
 					end if ;
 
 

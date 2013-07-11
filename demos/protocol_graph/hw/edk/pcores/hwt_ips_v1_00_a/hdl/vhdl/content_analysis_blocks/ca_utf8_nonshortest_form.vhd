@@ -194,11 +194,8 @@ begin
 			-- as one can see, only the first 2 bytes are necessary to decide wether the packet is evil or not.
 			
 				when unknown_idle =>
-					-- not known means "nothing evil found so far". 
-					-- i.e. when EOF arrives: jump to "good"
-					if (rx_eof='1')  then
-						next_state	<=	good;
-					end if ;
+					-- default:
+					next_state	<=	SAFE_STATE; 
 
 					-- Bytes which contain 7-bit ASCII characters "0xxx xxxx" are valid O:-)
 					-- Latter bytes of a multibyte character "10xx xxxx" can be ignored since the first bytes have already been checked.
@@ -239,6 +236,19 @@ begin
 							next_state	<=	unknown_idle; 
 						end if ;
 					end if ;
+
+					-- EOF handling.
+					-- not known means "nothing evil found so far". 
+					-- i.e. when EOF arrives: jump to "good"
+					if (next_state = SAFE_STATE or next_state = unknown_idle) then
+						if (rx_eof = '1') then
+						
+						end if ;
+						-- default for EOF.
+						next_state	<=	good; 
+					else
+						next_state	<= SAFE_STATE; 
+					end if; 
 								
 
 				when examine_2nd_byte_3 =>

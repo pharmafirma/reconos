@@ -383,6 +383,12 @@ begin
 	                                	--result_drop     	-- 
 	                                	)
 	begin
+		--default:
+		result_fifo_read 	<= '0';
+		packet_fifo_read 	<= '0'; 
+		tx_ll_src_rdy    	<= '0'; 
+		sender_next_state	<= sender_state; 
+		
 		case sender_state is
 			when idle =>
 				-- update outputs
@@ -456,7 +462,7 @@ begin
 				-- Apart from this, do the same checks as when in send state.
 				if (tx_ll_dst_rdy = '1' and packet_fifo_empty = '0') then 
 					sender_next_state <= send_nextbyte; 
-				else
+				else -- TODO dieses Else macht n och was falsch.
 					-- i.e. FIFO is empty
 					sender_next_state	<= send_stalled; 
 					tx_ll_src_rdy    	<=	'0';

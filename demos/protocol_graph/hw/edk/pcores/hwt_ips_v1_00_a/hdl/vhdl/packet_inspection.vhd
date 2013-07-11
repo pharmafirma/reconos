@@ -343,8 +343,8 @@ begin
 	                                 	fifo_empty_1,  	queued_result_1)
 	begin
 		-- if any of the FIFOs is empty, set empty signal to 1.
-		tx_fifo_empty	<=   	fifo_empty_1;
-		             	-- or	fifo_empty_n usw.
+		fifo_empty	<=   	fifo_empty_1;
+		          	-- or	fifo_empty_n usw.
 		if (EVIL_DROP = '1') then
 			-- if any result is set to '1', the result is evil. --> OR.
 			tx_result	<=  	result_1; 

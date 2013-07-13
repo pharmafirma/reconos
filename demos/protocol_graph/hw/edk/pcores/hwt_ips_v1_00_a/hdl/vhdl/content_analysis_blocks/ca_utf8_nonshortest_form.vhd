@@ -18,30 +18,25 @@ use ieee.std_logic_1164.all;
 
 
 
-
-
-
-
+-- This entity checks input data for characters represented in UTF-8 non-shortest form.
+-- http://www.unicode.org/versions/corrigendum1.html
+-- it returns exactly one result per packet (i.e. one clock cycle where result_valid is set).
 
 
 entity ca_utf8_nonshortest_form is
---	generic (
---		destination	: std_logic_vector(5 downto 0);
---		sender     		: std_logic
---	);
-  	port (
-  		rst            	:	in 	std_logic;
-  		clk            	:	in 	std_logic;
-  		rx_sof         	:	in 	std_logic;
-  		rx_eof         	:	in 	std_logic;
-  		rx_data        	:	in 	std_logic_vector(7 downto 0);
-  		rx_data_valid  	:	in 	std_logic;
-  		rx_ca_ready    	:	out	std_logic;
-  		--result_good  	:	out	std_logic;
-  		--result_evil  	:	out	std_logic;
-  		tx_result      	:	out	std_logic;
-  		tx_result_valid	:	out	std_logic
-  	);
+	port (
+		-- This entity receives data packets...
+		rst          	:	in 	std_logic;
+		clk          	:	in 	std_logic;
+		rx_sof       	:	in 	std_logic;
+		rx_eof       	:	in 	std_logic;
+		rx_data      	:	in 	std_logic_vector(7 downto 0);
+		rx_data_valid	:	in 	std_logic;
+		rx_ca_ready  	:	out	std_logic;
+		-- ... and returns one result per packet. 
+		tx_result      	:	out	std_logic;
+		tx_result_valid	:	out	std_logic
+	);
 
 end ca_utf8_nonshortest_form;
 
@@ -49,33 +44,10 @@ end ca_utf8_nonshortest_form;
 
 architecture implementation of ca_utf8_nonshortest_form is
 
-
 	-- some constants
 	constant	RESET       	:	std_logic	:= '1'; -- define if rst is active low or active high
-	constant	GOOD_FORWARD	:	std_logic	:= '1'; -- used constants instead of a "type" to simplify queuing.
+	constant	GOOD_FORWARD	:	std_logic	:= '1'; -- used constants instead of a "type" to simplify feeding it into a FIFO of std_logic_vector's.s
 	constant	EVIL_DROP   	:	std_logic	:= '0';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 	--			 ######   ####   ######    ##    ##     ###     ## 
@@ -86,22 +58,22 @@ architecture implementation of ca_utf8_nonshortest_form is
 	--			##    ##   ##   ##    ##   ##   ###  ##     ##  ## 
 	--			 ######   ####   ######    ##    ##  ##     ##  ######## 
 	-- signal declarations
-	type    	detector_state	is(	-- TODO description of the states.
-	        	              	   	unknown_idle, -- Note that we don't need an explicit id le state since it has the same meaning as the not yet known state.
-	        	              	   	good,
-	        	              	   	evil,
-	        	              	   	evil_wait, -- evil bit was already sent, 
-	        	              	   	examine_2nd_byte_3, -- for 3-byte chars.
-	        	              	   	examine_2nd_byte_4); -- for 4-byte chars.
-	signal  	state         	:  	detector_state; -- we only have one FSM in this entity, so this name is unambigous.
-	signal  	next_state    	:  	detector_state;
-	constant	SAFE_STATE    	:  	detector_state	:= evil; -- What to do when EOF arrives while analysing a multibyte character.
 
+	type  	detector_state	is(	
+	      	              	   	unknown_idle, -- Note that we don't need an explicit id le state since it has the same meaning as the not yet known state.
+	      	              	   	good,
+	      	              	   	evil,
+	      	              	   	evil_wait, -- evil bit was already sent, 
+	      	              	   	examine_2nd_byte_3, -- for 3-byte chars.
+	      	              	   	examine_2nd_byte_4); -- for 4-byte chars.
+	signal	state         	:  	detector_state; -- we only have one FSM in this entity, so this name is unambigous.
+	signal	next_state    	:  	detector_state;
+
+	-- Define what to do when EOF arrives while analysing a multibyte character.
+	constant	SAFE_STATE	:	detector_state	:= evil; -- Default is evil.
 
 
 	-- This entity is the innermost, it has no components.
-
-
 
 
 --				########   ########   ######    ####  ##    ## 
@@ -112,19 +84,48 @@ architecture implementation of ca_utf8_nonshortest_form is
 --				##     ##  ##        ##    ##    ##   ##   ### 
 --				########   ########   ######    ####  ##    ## 
 begin
-
-	-- This content analyser is always ready :-).
+	-- This content analyser has not delay, it is always ready :-).
 	rx_ca_ready	<=	'0' when (rst = RESET)	else '1'; 
 
 
-	memzing : process( clk, rst )
-	begin
-	    if rst = RESET then
-			state	<=	unknown_idle;
-	    elsif rising_edge(clk) then
-			state	<=	next_state; 
-	    end if;
-	end process ; -- memzing
+	-- there are no components, so no instantiations either.
+
+
+	-- processes
+
+-- TODO description of the states.
+	-- The entity's purpose is to check for non-shortest form. This is done with the following state machine.
+	--
+	-- Description of the states:
+	, -- Note that we don't need an explicit id le state since it has the same meaning as the not yet known state.
+	                     			,
+	                     			,
+	                     			, -- evil bit was already sent, 
+	                     			, -- for 3-byte chars.
+	                     			
+	-- unknown_idle      	(initial state)
+	--                   	Nothing evil has been found so far. 
+	--                   	Inspect the next byte.
+	--                   	Then, jump to "evil", "examine_2nd_byte_n" resp. the initial state.
+	--                   	If EOF arrives, jump to the "good"-State	
+	-- examine_2nd_byte_n	(n \in {3, 4})
+	--                   	In order to know the result, the second byte of a n-byte character has to be inspected.
+	--                   	Inspect the next byte.
+	--                   	Then, jump to "evil" resp. the initial state.
+	-- good              	Nothing evil has been found so far and EOF has arrived.
+	--                   	Send the result (good) to the output during exactly one clock cycle. 
+	--                   	Then, continue with the next packet.
+	-- evil              	Something evil has been found.
+	--                   	Send the result (good) to the output during exactly one clock cycle. 
+	--                   	Then, jump to evil_wait in order to wait for EOF. 
+	-- evil_wait         	The result (evil) is known and has already been sent.
+	--                   	Just wait for EOF.
+	--                   	Then, jump back to the initial state.
+	-- SAFE_STATE        	(Not an actual state, but a variable)
+	--                   	The byte currently inspected is part of a multibyte character,
+	--                   	it could be an attack, but EOF arrives.
+	--                   	Jump to the state defined in this variable.
+	--                   	You may set this variable to "good" or "evil".
 
 
 	memless : process(	state, 
@@ -200,8 +201,7 @@ begin
 
 				when unknown_idle =>
 
-					-- TODO probably there would be a more elegant way to the the EOF handling...
-
+					-- TODO probably there would be a more elegant way to the the EOF handling than all these copypasta if statements...
 
 					-- Bytes which contain 7-bit ASCII characters "0xxx xxxx" are valid O:-)
 					-- Latter bytes of a multibyte character "10xx xxxx" can be ignored since the first bytes have already been checked.
@@ -237,7 +237,7 @@ begin
 							else
 								next_state	<=	examine_2nd_byte_3; 
 							end if ;
-						else
+						else -- i.e. rx_data(3 downto 0) contain at least one '1' Bit
 							-- 13 bit or longer, i.e. this is a regular 3-byte character O:-)
 							if (rx_eof = '1') then
 								next_state	<=	good; 
@@ -257,7 +257,7 @@ begin
 							else
 								next_state	<=	examine_2nd_byte_4; 
 							end if ;
-						else
+						else -- i.e. rx_data(2 downto 0) contain at least one '1' Bit
 							-- 19 bit or longer, i.e. this is a regular 4-byte character O:-)
 							if (rx_eof = '1') then
 								next_state	<=	good; 
@@ -266,6 +266,7 @@ begin
 							end if ;
 						end if ;
 					end if ;
+
 
 					-- EOF handling.
 					-- not known means "nothing evil found so far". 
@@ -340,9 +341,18 @@ begin
 		end if ; -- rx_data_valid
 	end process; -- memless
 
+	memzing : process( clk, rst )
+	begin
+	    if rst = RESET then
+			state	<=	unknown_idle;
+	    elsif rising_edge(clk) then
+			state	<=	next_state; 
+	    end if;
+	end process ; -- memzing
 
 
-	-- TODO all the h2s logging stuff.
+
+	-- TODO do we need logging within this entity?
 
 
 end architecture;

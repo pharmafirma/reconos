@@ -36,61 +36,62 @@ architecture RTL of ips_tb is
 	signal  	clk                    	: std_logic;
 	signal  	rst                    	: std_logic;
 	constant	RESET                  	: std_logic	:= '1'; -- define if rst is active low or active high
+	--      	constants used by IPS  	
 	constant	GOOD_FORWARD           	: std_logic	:= '1'; -- used constants instead of a "type" to simplify queuing.
 	constant	EVIL_DROP              	: std_logic	:= '0';
+
 	-- a spacer, can be used in packets
 	constant	SPACER	: std_logic_vector(7 downto 0)	:= x"58"; -- capital X
 
 
 	
-	-- some debug signals
-	signal                         	debug_fifo_read   :	std_logic;
-	signal   debug_fifo_write  :   	std_logic;
-	signal   debug_severe_error  : 	std_logic;
-	signal   debug_result_result  :	std_logic;
-	signal   debug_result_valid  : 	std_logic;
+	-- some debug signals (TODO completely remove these)
+	signal	debug_fifo_read    	:	std_logic;
+	signal	debug_fifo_write   	:	std_logic;
+	signal	debug_severe_error 	:	std_logic;
+	signal	debug_result_result	:	std_logic;
+	signal	debug_result_valid 	:	std_logic;
 
 	
 	-- the TB has only one component, which ist the entity to be tested (model under test, MUT):
 	component ips is
 		port (
+			-- debug signals
 			debug_fifo_read    	:	in 	std_logic;
 			debug_fifo_write   	:	in 	std_logic;
 			debug_severe_error 	:	out	std_logic; 
 			debug_result_result	:	in 	std_logic; 
 			debug_result_valid 	:	in 	std_logic; 
-
-			rst          	:	in 	std_logic;
-			clk          	:	in 	std_logic;
-			rx_ll_sof    	:	in 	std_logic;
-			rx_ll_eof    	:	in 	std_logic;
-			rx_ll_data   	:	in 	std_logic_vector(7 downto 0);
-			rx_ll_src_rdy	:	in 	std_logic;
-			rx_ll_dst_rdy	:	out	std_logic;
-			tx_ll_sof    	:	out	std_logic;
-			tx_ll_eof    	:	out	std_logic;
-			tx_ll_data   	:	out	std_logic_vector(7 downto 0);
-			tx_ll_src_rdy	:	out	std_logic;
-			tx_ll_dst_rdy	:	in 	std_logic
+			-- everything else 	
+			rst                	:	in 	std_logic;
+			clk                	:	in 	std_logic;
+			rx_ll_sof          	:	in 	std_logic;
+			rx_ll_eof          	:	in 	std_logic;
+			rx_ll_data         	:	in 	std_logic_vector(7 downto 0);
+			rx_ll_src_rdy      	:	in 	std_logic;
+			rx_ll_dst_rdy      	:	out	std_logic;
+			tx_ll_sof          	:	out	std_logic;
+			tx_ll_eof          	:	out	std_logic;
+			tx_ll_data         	:	out	std_logic_vector(7 downto 0);
+			tx_ll_src_rdy      	:	out	std_logic;
+			tx_ll_dst_rdy      	:	in 	std_logic
 		);
 	end component;
 	
 
 begin
 
-	packet_len  <= 64; -- constant for the moment
+	packet_len  <= 64; -- is constant for the moment
 
-	-- TEST: receiver not ready after certaint time.
+	-- Uncomment next line to perform TEST: receiver not ready in a certaint time period.
 	rx_ll_dst_rdy  <= '1', '0' after 1.78 ms, '1' after 2.5111 ms;
 
-	-- TEST: sender not ready
+	-- Uncomment next line to perform TEST: sender not ready in a certaint time period.
 	tx_ll_src_rdy	<= '1', '0' after 2.3333 ms, '1' after 3.2222 ms;
 
 
 
-	-- FSM which generates packets. 
-
-
+	-- some general hexspeak packets:
 	-- packet_tx_payload <= (	x"de", -- four dead beef :-(
 	--                       	x"ad", 
 	--                       	x"be", 
@@ -146,9 +147,8 @@ begin
 	-- );
 
 
-
-	packet_tx_payload <= (	-- Some UTF-8 stuff
-	                      	x"61",	-- a
+	-- UTF-8 packets:
+	packet_tx_payload <= (	x"61",	-- a
 	                      	x"62",	-- b
 	                      	x"63",	-- c
 	                      	x"64",	-- d
@@ -160,19 +160,20 @@ begin
 	                      	SPACER, 
 	                      	SPACER, 
 	                      	SPACER, 
-	                      	-- some invalid bullshit, but not a non-shortest form.
-	                      	x"49", x"3a", -- I:
-	                      	x"9f", x"92", x"a9",
+	                      	-- some invalid bytes "10xxxxxx", but not a non-shortest form.
+	                      	x"49", x"3a",       	-- I:, an identitier to find them in the simulation later.
+	                      	x"9f", x"92", x"a9",	-- the actual data.
 	                      	SPACER, 
 	                      	SPACER, 
 	                      	SPACER, 
 	                      	-- and some valid (multibyte) characters: 
-	                      	x"56", x"3a", -- V:
+	                      	x"56", x"3a", -- V:, identifier
 	                      	--x"", x"", x"", x"", SPACER,      	-- boilerplate
-	                      	x"5f", SPACER,                     	-- _
+	                      	x"5f", SPACER,                     	-- underscore _
 	                      	x"c3", x"a4", SPACER,              	-- a Umlaut a.k.a. 'LATIN SMALL LETTER A WITH DIAERESIS' (U+00E4)
 	                      	x"e6", x"b8", x"af", SPACER,       	-- Han Character 'port, harbor; small stream; bay' (U+6E2F)
 	                      	x"f0", x"9f", x"92", x"a9", SPACER,	-- 'PILE OF POO' (U+1F4A9)
+	                      	-- TODO add more characters s.t. all possible bit length are tested.
 	                      	SPACER, 
 	                      	SPACER, 
 	                      	SPACER, 
@@ -187,6 +188,7 @@ begin
 	                      	--x"c0", x"af",              	-- ...2-byte...
 	                      	--x"e0", x"80", x"af",       	-- ...3-byte...
 	                      	--x"f0", x"80", x"80", x"af",	-- ...or 4-byte non-shortest form.
+	                      	-- TODO add more invalid characters s.t. all possible bit length are tested.
 	                      	others => SPACER
 	);
 
@@ -284,12 +286,12 @@ begin
 	-- instatiate 1 ips component
 	ips_inst : ips 
 	port map(
-	   debug_fifo_read         =>     	debug_fifo_read,
-	   debug_fifo_write        =>     	debug_fifo_write,
-	debug_severe_error         =>     	debug_severe_error,
-	debug_result_result            => 		debug_result_result,
-	debug_result_valid              =>		debug_result_valid, 
-
+		debug_fifo_read        	=>	debug_fifo_read,
+		debug_fifo_write       	=>	debug_fifo_write,
+		debug_severe_error     	=>	debug_severe_error,
+		debug_result_result    	=>	debug_result_result,
+		debug_result_valid     	=>	debug_result_valid,
+		-- as always           	
 		rst                    	=>	rst,
 		clk                    	=>	clk,
 		-- what the TB sends...	is what the MUT reveives

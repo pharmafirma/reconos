@@ -18,44 +18,36 @@ use ieee.std_logic_1164.all;
 
 
 
-
-
-
-
+-- This entity ...
+-- TODO
 
 
 entity packet_inspection is
 	port (
-		rst                      	:	in 	std_logic;
-		clk                      	:	in 	std_logic;
+		rst	:	in	std_logic;
+		clk	:	in	std_logic;
+		-- This entity receives data packets...
 		rx_sof                   	:	in 	std_logic;
 		rx_eof                   	:	in 	std_logic;
 		rx_data                  	:	in 	std_logic_vector(7 downto 0);
-		rx_data_valid            	:	in 	std_logic;
-		rx_packetinspection_ready	:	out	std_logic;
-		--result_good            	:	out	std_logic;
-		--result_evil            	:	out	std_logic;
-		tx_result                	:	out	std_logic; -- from the outside this interface looks like a FIFO
-		tx_fifo_empty            	:	out	std_logic;
-		tx_fifo_read             	:	in 	std_logic
+		rx_data_valid            	:	in 	std_logic;	-- source ready
+		rx_packetinspection_ready	:	out	std_logic;	-- destination ready
+		-- ... and returns results (note: no data packets).
+		tx_result    	:	out	std_logic; -- from the outside this interface looks like a FIFO
+		tx_fifo_empty	:	out	std_logic;
+		tx_fifo_read 	:	in 	std_logic
 	);
 end packet_inspection;
 
---------------------------------------------------------------
 
 architecture implementation of packet_inspection is
 
-
 	-- some constants
-	constant	RESET            	:	std_logic	:= '1'; -- define if rst is active low or active high
-	constant	GOOD_FORWARD     	:	std_logic	:= '1'; -- used constants instead of a "type" to simplify queuing.
-	constant	EVIL_DROP        	:	std_logic	:= '0';
-	constant	RESULT_WIDTH     	:	integer  	:= 1; -- in bits (good / evil).
-	constant	HEADER_MAX_LENGTH	:	integer  	:= 42; -- Maximum length of header data (in bytes).
-
-
-
-
+	constant	RESET            	:	std_logic	:= '1';	-- define if rst is active low or active high
+	constant	GOOD_FORWARD     	:	std_logic	:= '1';	-- used constants instead of a "type" to simplify feeding it into a FIFO of std_logic_vector's.
+	constant	EVIL_DROP        	:	std_logic	:= '0';	
+	constant	RESULT_WIDTH     	:	integer  	:= 1;  	-- in bits (good / evil).
+	constant	HEADER_MAX_LENGTH	:	integer  	:= 42; 	-- Maximum length of header data (in bytes).
 
 
 	--			 ######  ####  ######   ##    ##    ###    ## 
@@ -67,12 +59,10 @@ architecture implementation of packet_inspection is
 	--			 ######  ####  ######   ##    ## ##     ## ######## 
 	-- signal declarations
 
-
-
-	-- the header has not to be checked by the IPS. 
-	signal 	header_length        	:  	integer	range 0 to HEADER_MAX_LENGTH+2; -- in bytes
-	signal 	skipheader_count     	:  	integer	range 0 to HEADER_MAX_LENGTH+2; -- in bytes
-	signal 	skipheader_next_count	:  	integer	range 0 to HEADER_MAX_LENGTH+2; -- in bytes
+	-- used to skip a certain amount of header bytes
+	signal 	header_length        	:  	integer	range 0 to HEADER_MAX_LENGTH+2; 
+	signal 	skipheader_count     	:  	integer	range 0 to HEADER_MAX_LENGTH+2; 
+	signal 	skipheader_next_count	:  	integer	range 0 to HEADER_MAX_LENGTH+2; 
 	-- type	skipheader_type      	is(	idle, 
 	--     	                     	   	next_header_byte, 
 	--     	                     	   	next_data_byte); 
@@ -80,10 +70,13 @@ architecture implementation of packet_inspection is
 	       	                     	   	data_bytes); 
 	signal 	skipheader_state     	:  	skipheader_type;	
 	signal 	skipheader_next_state	:  	skipheader_type; 
-	signal 	check_me             	:  	std_logic; -- "data_valid" signal for the content analyser blocks. Will be set to 1 when the header is over :).
-	signal 	fifo_read            	:  	std_logic; -- one fifo_read for all FIFOs is enough.
-	signal 	fifo_empty           	:  	std_logic; -- intermediate signal for tx_fifo_empty
-	-- to be "generic'ised" one day...
+
+	-- "data_valid" signal for the content analyser blocks. Will be set to 1 when the header is over (and the data are valid).
+	signal	check_me  	:	std_logic; 
+	signal	fifo_read 	:	std_logic; -- one fifo_read for all FIFOs is enough.
+	signal	fifo_empty	:	std_logic; -- intermediate signal for tx_fifo_empty
+
+	-- TODO to be automatised one day: one signal for each content analyser (ca_ready_1, ca ca_ready_2 ca_ready_3 etc.)
 	signal	ca_ready_1     	:	std_logic; -- n'th content analyser block ready
 	signal	result_1       	:	std_logic; -- result output of the n'tn content analyser block, input of the n'th FIFO
 	signal	result_valid_1 	:	std_logic; -- valid bit of result_n
@@ -98,9 +91,8 @@ architecture implementation of packet_inspection is
 
 	-- include components
 
-
-	-- include one component for each content analysis.
-	-- TODO somehow generic'ise this
+	-- include one "analyser" component for each content analysis.
+	-- TODO somehow automatise this process s.t. it includes all files in the content_analysers directory.
 	component ca_utf8_nonshortest_form is
 		port (
 			rst            	:	in 	std_logic;
@@ -120,7 +112,7 @@ architecture implementation of packet_inspection is
 	generic (
 		C_FIFO32_WORD_WIDTH         	:	integer	:= RESULT_WIDTH;
 		C_FIFO32_CONTROLSIGNAL_WIDTH	:	integer	:= 8; -- TODO
-		C_FIFO32_DEPTH              	:	integer := 4; -- TODO
+		C_FIFO32_DEPTH              	:	integer := 24; -- 1500/64 (worst case # packets in packet FIFO). TODO check this.
 		CLOG2_FIFO32_DEPTH          	:	integer := 4; -- ceil(log2(depth))
 		C_FIFO32_SAFE_READ_WRITE    	:	boolean	:= true
 	);
@@ -151,25 +143,83 @@ architecture implementation of packet_inspection is
 --				########   ########   ######    ####  ##    ## 
 begin
 
-	-- When the result is valid, write it to the FIFO.
-	-- Note: This assumes that each CA block only set this bit to '1' for one clock cycle. 
-	-- If this assumption is not valid anymore, one needs to adapt the following line s.t. only one result bit per packet is written to the FIFO.
+	-- The FIFOs only contain valid results. So when the result is valid, write it to the FIFO.
 	fifo_write_1	<=	result_valid_1;
+	-- WARNING: This line of code assumes that each CA block only set this bit to '1' for one clock cycle. 
+	-- If this assumption no longer holds, one needs to adapt it s.t. only one result bit per packet is written to the FIFO!
 
+
+	-- You might not want to check the header of a packet for attacks.
+	-- The following signal can be set to the number of bytes an the begin of a packet which shall be skipped.
 	-- currently, the header length is assumed to be constant.
 	header_length	<=	1; -- in bytes
+
 
 	-- the result is std_logic, but the FIFO expects a std_logic_vector.
 	fifo_in_1(0)   	<=	result_1;
 	queued_result_1	<=	fifo_out_1(0); 
 
-	-- just read FIFOs when they are not empty.
+	-- only read FIFOs when they are not empty.
+	-- Probably this code is redundant since the FIFOs cannot "underflow" (C_FIFO32_SAFE_READ_WRITE is set to true). 
+	-- TODO Think about this and remove if redundant.
 	fifo_read    	<=	tx_fifo_read	and not fifo_empty; 
 	tx_fifo_empty	<=	fifo_empty; 
 
 
 
-	-- do not check the first n bytes, because they are in the header.
+	-- component instantiations
+
+	-- instantiate all content analysis components. TODO To be automatised...
+	ca_utf8_nonshortest_form_inst : ca_utf8_nonshortest_form
+	port map(
+		-- The same signal for all content analysers.
+		rst          	=>	rst,
+		clk          	=>	clk,
+		rx_sof       	=>	rx_sof,
+		rx_eof       	=>	rx_eof,
+		rx_data      	=>	rx_data,
+		rx_data_valid	=>	check_me,
+		-- Signals specific for each content analyser.
+		-- TODO automatise here...
+		rx_ca_ready    	=>	ca_ready_1,
+		tx_result      	=>	result_1,
+		tx_result_valid	=>	result_valid_1
+	);
+
+
+
+	-- instantiate a FIFO for each result.  TODO To be automatised...
+	result_fifo_1 : fifo32
+	--generic map(
+	  	-- already defined above, we need the same generics for all FIFOs.
+	--	)
+	port map(
+		Rst         	=> rst, 
+		FIFO32_S_Clk	=> clk,
+		FIFO32_M_Clk	=> clk,
+		-- TODO automatise all ..._1's.
+		FIFO32_S_Data  	=> fifo_out_1, 
+		FIFO32_M_Data  	=> fifo_in_1, 
+		--FIFO32_S_Fill	=> ,	-- unused, we need full and empty only.
+		--FIFO32_M_Rem 	=> ,	-- unused, we need full and empty only.
+		FIFO32_S_Full  	=> fifo_full_1, 
+		FIFO32_M_Empty 	=> fifo_empty_1, 
+		FIFO32_S_Rd    	=> fifo_read, 
+		FIFO32_M_Wr    	=> fifo_write_1
+	);
+
+
+
+	-- processes
+
+	-- do not check the header bytes.
+	--
+	-- header_bytes:	(initial state)
+	--              	The current byte is a header byte.
+	--              	Set check_me to '0'.
+	-- data_bytes:  	The current byte is a data byte.
+	--              	Set check_me to '1'.
+
 	skipheader_memless : process(	skipheader_state, 
 	                             	rx_sof, 
 	                             	rx_eof, 
@@ -218,17 +268,8 @@ begin
 
 
 
-				--		--  _____ ____  ____  ____ 
-				--		-- /__ __Y  _ \/  _ \/  _ \
-				--		--   / \ | / \|| | \|| / \|
-				--		--   | | | \_/|| |_/|| \_/|
-				--		--   \_/ \____/\____/\____/
-				  	      
 
-
-
-
-				--		-- TODO: Implement special handling for header length 0 and 1.         	--
+				--		-- done: Implement special handling for header length 0 and 1.         	--
 				--		---- oder einfach nochmals neu überlegen... Ich denke 2 states reichen.	--
 
 
@@ -260,7 +301,7 @@ begin
 				--	check_me             	<=	'1';
 			
 			end case ;
-		else
+		else -- i.e. (rx_data_valid = '0')
 			skipheader_next_state	<= skipheader_state; 
 		end if;
 	end process ; -- skipheader_memless
@@ -279,55 +320,10 @@ begin
 	end process ; -- skipheader_memzing
 
 
-	-- instantiate all content analysis components
-	ca_utf8_nonshortest_form_inst : ca_utf8_nonshortest_form
-	port map(
-		-- The same signal for all content analysers.
-		rst          	=>	rst,
-		clk          	=>	clk,
-		rx_sof       	=>	rx_sof,
-		rx_eof       	=>	rx_eof,
-		rx_data      	=>	rx_data,
-		rx_data_valid	=>	check_me,
-		-- TODO generic'ise me.
-		-- Signals specific for each content analyser.
-		rx_ca_ready    	=>	ca_ready_1,
-		tx_result      	=>	result_1,
-		tx_result_valid	=>	result_valid_1
-	);
-
-
-
-
-	-- instantiate all result FIFOs.
-	result_fifo_1 : fifo32
-	--generic map(
-	  	-- already defined above, we need the same generics for all FIFOs.
-	--	)
-	port map(
-		Rst         	=> rst, 
-		FIFO32_S_Clk	=> clk,
-		FIFO32_M_Clk	=> clk,
-		-- TODO create generics for all ..._1's.
-		FIFO32_S_Data  	=> fifo_out_1, 
-		FIFO32_M_Data  	=> fifo_in_1, 
-		--FIFO32_S_Fill	=> ,	-- unused, we need full and empty only.
-		--FIFO32_M_Rem 	=> ,	-- unused, we need full and empty only.
-		FIFO32_S_Full  	=> fifo_full_1, 
-		FIFO32_M_Empty 	=> fifo_empty_1, 
-		FIFO32_S_Rd    	=> fifo_read, 
-		FIFO32_M_Wr    	=> fifo_write_1
-	);
-
-
-
-
-
-
 
 
 	-- aggregate all "Ready" signals. Note: if any of the fifos is full, we are not ready.
-	-- TODO create generics for all ..._n's.
+	-- TODO automatise all ..._n's.
 	aggregate_ready_signals : process(	--ca_ready_n,	fifo_full_n,
 	                                  	ca_ready_1,  	fifo_full_1)
 	begin
@@ -336,9 +332,8 @@ begin
 	end process;
 
 
-
 	-- aggregate all FIFO outputs, i.e. fifo empty and good/evil signals
-	-- TODO create generics for all ..._n's.
+	-- TODO automatise all ..._n's.
 	aggregate_fifo_outputs : process(	--fifo_empty_n,	queued_result_n,
 	                                 	fifo_empty_1,  	queued_result_1)
 	begin
@@ -358,12 +353,7 @@ begin
 
 
 
-
-
-
-
-
-	-- TODO all the h2s logging stuff.
+	-- TODO all the h2s logging stuff (i.e. wiring the resp. signals to.
 
 
 end architecture;

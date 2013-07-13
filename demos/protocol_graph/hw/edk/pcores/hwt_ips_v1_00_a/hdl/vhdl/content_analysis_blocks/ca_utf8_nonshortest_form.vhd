@@ -97,12 +97,8 @@ begin
 	-- The entity's purpose is to check for non-shortest form. This is done with the following state machine.
 	--
 	-- Description of the states:
-	, -- Note that we don't need an explicit id le state since it has the same meaning as the not yet known state.
-	                     			,
-	                     			,
-	                     			, -- evil bit was already sent, 
-	                     			, -- for 3-byte chars.
-	                     			
+	-- Note that we don't need an explicit idle state since it has the same meaning as the not yet known state.
+	--
 	-- unknown_idle      	(initial state)
 	--                   	Nothing evil has been found so far. 
 	--                   	Inspect the next byte.

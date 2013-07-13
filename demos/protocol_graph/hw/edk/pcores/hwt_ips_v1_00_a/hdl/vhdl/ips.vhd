@@ -465,9 +465,9 @@ begin
 	begin
 		receiver_ready   	<=	(not packet_fifo_full)	and packet_inspection_ready; --and (not result_fifo_full) 
 		data_valid       	<=	rx_ll_src_rdy         	and receiver_ready;
+		-- TODO:         	
 		-- receiver_ready	<=	'0' when (rst = RESET)	else bla bla...;
-		--               	TODO: test if next line works. 
-		rx_ll_dst_rdy    	<=	'0' when (rst = RESET)	else receiver_ready;
+		rx_ll_dst_rdy    	<=	receiver_ready;
 	end process; 
 
 

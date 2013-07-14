@@ -16,19 +16,23 @@ entity fifo32 is
 	         	C_FIFO32_SAFE_READ_WRITE    	:	boolean	:= false	-- if enabled, the FIFO automatically prevents reading from it, if it is empty resp. writing if it is full. 
 	);
 	port (
-		Rst           	:	in	std_logic;
-		-- ..._M_...  	=	input of the FIFO.
-		-- ..._S_...  	=	output of the FIFO.
-		FIFO32_S_Clk  	:	in 	std_logic;                                                	-- clock and data signals
-		FIFO32_M_Clk  	:	in 	std_logic;                                                	
-		FIFO32_S_Data 	:	out	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);         	
-		FIFO32_M_Data 	:	in 	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);         	
-		FIFO32_S_Fill 	:	out	std_logic_vector(C_FIFO32_CONTROLSIGNAL_WIDTH-1 downto 0);	-- # data elements in the FIFO. 0 means FIFO is empty.
-		FIFO32_M_Rem  	:	out	std_logic_vector(C_FIFO32_CONTROLSIGNAL_WIDTH-1 downto 0);	-- remaining free space. 0 means FIFO is full.
-		FIFO32_S_Full 	:	out	std_logic;                                                	-- FIFO full signal
-		FIFO32_M_Empty	:	out	std_logic;                                                	-- FIFO empty signal
-		FIFO32_S_Rd   	:	in 	std_logic;                                                	-- output data ready
-		FIFO32_M_Wr   	:	in 	std_logic                                                 	-- write enabled
+		Rst         	:	in	std_logic;
+		-- ..._M_...	=	input of the FIFO.
+		-- ..._S_...	=	output of the FIFO.
+		-- Clock and data signals. Different Clocks are possible for input and output. 
+		FIFO32_S_Clk 	:	in 	std_logic;
+		FIFO32_M_Clk 	:	in 	std_logic;
+		FIFO32_S_Data	:	out	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);
+		FIFO32_M_Data	:	in 	std_logic_vector(C_FIFO32_WORD_WIDTH-1 downto 0);
+		-- # data elements in the FIFO. 0 means the FIFO is empty, i.e. the FIFO32_M_Empty signal will be set to '1'. 
+		-- Alike for the remaining free space / FIFO32_S_Full signal. 
+		FIFO32_S_Fill 	:	out	std_logic_vector(C_FIFO32_CONTROLSIGNAL_WIDTH-1 downto 0);
+		FIFO32_M_Rem  	:	out	std_logic_vector(C_FIFO32_CONTROLSIGNAL_WIDTH-1 downto 0);
+		FIFO32_S_Full 	:	out	std_logic;
+		FIFO32_M_Empty	:	out	std_logic;
+		-- read enable resp. write enable signal
+		FIFO32_S_Rd	:	in	std_logic;
+		FIFO32_M_Wr	:	in	std_logic
 	);
 end entity;
 
@@ -59,6 +63,7 @@ begin
 	FIFO32_S_Full 	<= full;
 	FIFO32_M_Empty	<= empty;
 
+	-- If enabled, the FIFO prevents an overflow when writing data into the full fifo (analogue for the empty FIFO).
 	-- you can enable or disable this feature by setting the "C_FIFO32_SAFE_READ_WRITE" gereric.
 	safe_read_write : process(FIFO32_S_Rd, FIFO32_M_Wr, empty, full)
 	begin
@@ -71,8 +76,7 @@ begin
 		end if;
 	end process;
 
-	-- write process 
-	process(FIFO32_M_Clk, Rst)
+	write_to_fifo : process(FIFO32_M_Clk, Rst)
 	begin
 		if Rst = '1' then
 			wrptr <= (others => '0');
@@ -88,8 +92,7 @@ begin
 		end if;
 	end process;
 
-	-- read process
-	process(FIFO32_S_Clk, Rst)
+	read_from_fifo : process(FIFO32_S_Clk, Rst)
 	begin
 		if Rst = '1' then
 			rdptr <= (others => '0');
@@ -105,4 +108,3 @@ begin
 	end process;
 
 end architecture;
-

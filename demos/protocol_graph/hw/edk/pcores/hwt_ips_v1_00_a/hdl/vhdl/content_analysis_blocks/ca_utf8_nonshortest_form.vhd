@@ -154,7 +154,6 @@ begin
 				-- send evil signal. 
 				tx_result      	<=	EVIL_DROP;
 				tx_result_valid	<=	'1';
-
 				
 				if (rx_eof = '1') then
 					next_state	<=	unknown_idle; 

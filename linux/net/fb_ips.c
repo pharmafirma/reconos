@@ -14,11 +14,15 @@
 #include "xt_engine.h"
 
 struct fb_ips_priv {
+	// private daten von jeder "instanz" des moduls.
+	// beim AUS Block wäre das z. B. der key.
 	idp_t port[2];
 	seqlock_t lock;
 } ____cacheline_aligned_in_smp;
 
 static ssize_t fb_ips_linearize(struct fblock *fb, uint8_t *binary, size_t len)
+// um irgendwas zur hw zu senden muss man dies typischerweise zuerste "linearisieren"
+// also aus structs o.ä. Datenstrukturen einen "bit vektor" machen den man in die HW Register / Speicher schreiben kann.
 {
 	struct fb_ips_priv *fb_priv;
 
@@ -33,6 +37,7 @@ static ssize_t fb_ips_linearize(struct fblock *fb, uint8_t *binary, size_t len)
 }
 
 static void fb_ips_delinearize(struct fblock *fb, uint8_t *binary, size_t len)
+// umkehrung von linearize
 {
 	struct fb_ips_priv *fb_priv;
 	/* mem is already flat */

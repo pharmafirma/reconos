@@ -3,12 +3,15 @@
 #define CA_UTF8_NONSHORTEST_FORM
 #endif
 
+// needed for printk only. may be removed later.
+#include <linux/kernel.h>
+
 #include "ca_utf8_nonshortest_form.h"
 
 
 
-int ca_utf8_nonshortest_form(	void // TODO
-                             	)
+int ca_utf8_nonshortest_form(	unsigned char * start, 
+                             	unsigned int length)
 {
 
 	//	 ____	                                      	_____
@@ -34,7 +37,8 @@ int ca_utf8_nonshortest_form(	void // TODO
 	// int  	packet_length	= 10;
 
 	// all possible UTF-8 bit lengths. 
-	// Please do not alter the content of these lines, just uncomment what you need.
+	// Please do not alter the content of these lines:
+	// Either uncomment what you need or make a copy ofs the line you want and play around in the copy.
 	//char *	buffer_debug 	= "\x00\x01\x02\x04\x08\x10\x20\x40";
 	//int   	packet_length	= 8;
 	//char *	buffer_debug 	= "\xc0\x80\xc0\x81\xc0\x82\xc0\x84\xc0\x88\xc0\x90\xc0\xa0\xc1\x80\xc2\x80\xc4\x80\xc8\x80\xd0\x80";

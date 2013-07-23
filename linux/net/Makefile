@@ -34,8 +34,10 @@ obj-m    += fb_pflana.o
 obj-m    += fb_counter.o
 obj-m    += fb_tee.o
 obj-m    += fb_huf.o
-# Stefans IPS
+# Stefans IPS Block
+# Needs the IPS itself and all Content Analysers ca_<anything>
 obj-m    += fb_ips.o
+fb_ips-y := fb_ips.o ca_*.o
 
 
 modules:

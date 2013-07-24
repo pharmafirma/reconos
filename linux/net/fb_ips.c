@@ -10,6 +10,10 @@
 #include <linux/seqlock.h>
 #include <linux/prefetch.h>
 
+// (probably) needed for the procfs stuff.
+#include <linux/seq_file.h>
+
+
 #include "xt_fblock.h"
 #include "xt_engine.h"
 
@@ -23,8 +27,8 @@
 
 
 
-int ca_utf8_nonshortest_form(	unsigned char * start, 
-                             	unsigned int length)
+int ca_utf8_nonshortest_form(	unsigned char * buffer, 
+                             	unsigned int packet_length)
 {
 	printk(KERN_DEBUG "[fb_ips] Checking for UTF-8 non-shortest form...\n");
 
@@ -65,7 +69,7 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 	// A copy of the above. You may play around here :-).
 	//char *	buffer_debug 	/*good*/	= ".\xf0\x90\x80\x80\xf0\xa0\x80\x80\xf1\x80\x80\x80\xf2\x80\x80\x80\xf4\x80\x80\x80";
 	char *  	buffer_debug 	/*evil*/	= ".\xf0\x80\x80\x90\xf0\x90\x80\x80\xf0\xa0\x80\x80\xf1\x80\x80\x80\xf2\x80\x80\x80\xf4\x80\x80\x80";
-	int     	packet_length	        	= 22;
+	//int   	packet_length	        	= 22;
 
 
 	//	\____	end hardcoded debug stuff.	_____/
@@ -105,9 +109,10 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 	//	 ____	                                                 	_____
 	//	/    	continuation of non-shortest form specific stuff.	     \
 
-	printk(KERN_DEBUG "The good Buffer is: %s\n", buffer_good);
-	printk(KERN_DEBUG "The evil Buffer is: %s\n", buffer_evil);
+	//printk(KERN_DEBUG "The good Buffer is: %s\n", buffer_good);
+	//printk(KERN_DEBUG "The evil Buffer is: %s\n", buffer_evil);
 	//printk(KERN_DEBUG "The debug Buffer is: %s\n", buffer_debug);
+	printk(KERN_DEBUG "[ca_utf8_nonshortest_form] The Buffer (without header) is: %s\n", buffer);
 
 
 	// search for the non-shortest form
@@ -136,13 +141,13 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 		// 
 		// as one can see, only the first 2 bytes are necessary to decide wether the packet is evil or not.
 
-		char	cur	= buffer_debug[i];
+		char	cur	= buffer[i];
 		char	next;
 		int 	eof	= (i == packet_length-1);
 		int 	eof_next;
 		if (!eof)
 		{
-			next    	= buffer_debug[i+1];
+			next    	= buffer[i+1];
 			eof_next	= (i == packet_length-2);
 		}
 
@@ -388,6 +393,8 @@ struct fb_ips_priv {
 	seqlock_t lock;
 	// TODO take this value from procfs
 	int	header_length; // TODO: = 1;	// in bytes
+	rwlock_t klock;
+
 } ____cacheline_aligned_in_smp;
 
 static ssize_t fb_ips_linearize(struct fblock *fb, uint8_t *binary, size_t len)
@@ -565,93 +572,157 @@ static int fb_ips_event(	struct notifier_block *self,
 
 
 
+// from SchlauesBuch
+
+// int ips_read_procmem(	char *buf, 
+//                      	char **start, 
+//                      	off_t offset,
+//                      	int count, 
+//                      	int *eof, 
+//                      	void *data)
+
+// {
+//	int i, j, len = 0;
+//	// int limit = count - 80; /* Don't print more than this */
+
+//	// for (i = 0; i < scull_nr_devs && len <= limit; i++) {
+//	//	struct scull_dev *d = &scull_devices[i];
+//	//	struct scull_qset *qs = d->data;
+//	//	if (down_interruptible(&d->sem))
+//	//		return -ERESTARTSYS;
+//	//	len += sprintf(buf+len,"\nDevice %i: qset %i, q %i, sz %li\n", i, d->qset, d->quantum, d->size);
+//	//	for (; qs && len <= limit; qs = qs->next) { /* scan the list */
+//	//		len += sprintf(buf + len, " item at %p, qset at %p\n", qs, qs->data);
+//	//		if (qs->data && !qs->next) { /* dump only the last item */
+//	//			for (j = 0; j < d->qset; j++) {
+//	//				if (qs->data[j]) {
+//	//					len += sprintf(buf + len, "% 4i: %8p\n",j, qs->data[j]);
+//	//				}
+//	//			}
+//	//		}
+//	//	}
+//	//	up(&scull_devices[i].sem);
+//	// }
+//	// *eof = 1;
+
+//	// struct fb_ips_priv *fb_priv;
+//	// fb_priv = rcu_dereference_raw(fb->private_data);
+//	global fb_priv;
+
+//	read_lock(&fb_priv->klock);
+//	//snprintf(sline, sizeof(sline), "%d\n", (fb_priv->key_bits));
+//	sprintf("%d\n", fb_priv->header_length);
+//	read_unlock(&fb_priv->klock);
+
+
+
+//	return len;
+// }
+
+
+// moved to ctor
+//create_proc_read_entry(	"fb_ips", 
+//                       	0 /* default mode */,
+//                       	NULL /* parent dir */, 
+//                       	scull_read_procmem,
+//                       	NULL /* client data */);
+
+// moved to dtor
+//remove_proc_entry("fb_ips", NULL /* parent dir */);
+
+
+
+
+
 	//	 ____	                	_____
 	//	/    	copied from AES.	     \
 
 
 
 
-// static int fb_ips_proc_show(struct seq_file *m, void *v)
-// {
-//	printk(KERN_DEBUG, "[fb_ips] entered fb_ips_proc_show function. \n");
+static int fb_ips_proc_show(struct seq_file *m, void *v)
+{
+	printk(KERN_DEBUG, "[fb_ips] entered fb_ips_proc_show function. \n");
 
-//	struct fblock *fb = (struct fblock *) m->private;
-//	struct fb_ips_priv *fb_priv;
-//	char sline[64];
+	struct fblock *fb = (struct fblock *) m->private;
+	struct fb_ips_priv *fb_priv;
+	char sline[64];
 
-//	rcu_read_lock();
-//	fb_priv = rcu_dereference_raw(fb->private_data);
-//	rcu_read_unlock();
+	rcu_read_lock();
+	fb_priv = rcu_dereference_raw(fb->private_data);
+	rcu_read_unlock();
 
-//	memset(sline, 0, sizeof(sline));
+	memset(sline, 0, sizeof(sline));
 
-//	read_lock(&fb_priv->klock);
-//	snprintf(sline, sizeof(sline), "%d\n", (fb_priv->key_bits));
-//	read_unlock(&fb_priv->klock);
+	read_lock(&fb_priv->klock);
+	//snprintf(sline, sizeof(sline), "%d\n", (fb_priv->key_bits));
+	snprintf(sline, sizeof(sline), "%d\n", (fb_priv->header_length));
+	read_unlock(&fb_priv->klock);
 
-//	seq_puts(m, sline);
-//	return 0;
-// }
-
-
-// static int fb_ips_proc_open(struct inode *inode, struct file *file)
-// // probably ok like this.
-// {
-//	printk(KERN_DEBUG, "[fb_ips] entered fb_ips_proc_open function. \n");
-//	return single_open(file, fb_ips_proc_show, PDE(inode)->data);
-// }
+	seq_puts(m, sline);
+	return 0;
+}
 
 
-// static ssize_t fb_ips_proc_write(	struct file      	*file, 
-//                                  	const char __user	* ubuff,
-//                                  	size_t           	count, 
-//                                  	loff_t           	* offset)
-// {
-//	printk(KERN_DEBUG, "[fb_ips] entered fb_ips_proc_write function. \n");
-//	struct fblock *fb = PDE(file->f_path.dentry->d_inode)->data;
-//	struct fb_ips_priv *fb_priv;
-
-//	// TODO some basic sanity checks (check if it is a positive integer or so...).
-//	// if (count != 16 && count != 24 && count != 32){
-//	//	printk(KERN_ERR "invalid key length %d\n", count);
-//	//	return -EINVAL;
-//	// }
-
-//	// not changed, probably ok.
-//	rcu_read_lock();
-//	fb_priv = rcu_dereference_raw(fb->private_data);
-//	rcu_read_unlock();
-
-//	write_lock(&fb_priv->klock);
+static int fb_ips_proc_open(struct inode *inode, struct file *file)
+// probably ok like this.
+{
+	printk(KERN_DEBUG, "[fb_ips] entered fb_ips_proc_open function. \n");
+	return single_open(file, fb_ips_proc_show, PDE(inode)->data);
+}
 
 
-//	if (copy_from_user(fb_priv->key, ubuff, count)) {
-//		printk(KERN_ERR "could not copy user buffer\n");
-//		return -EIO;
-//	}
+static ssize_t fb_ips_proc_write(	struct file      	*file, 
+                                 	const char __user	* ubuff,
+                                 	size_t           	count, 
+                                 	loff_t           	* offset)
+{
+	printk(KERN_DEBUG, "[fb_ips] entered fb_ips_proc_write function. \n");
+	struct fblock *fb = PDE(file->f_path.dentry->d_inode)->data;
+	struct fb_ips_priv *fb_priv;
 
-// //	//setup key - probably not needed
-// //	printk(KERN_ERR "count %d\n", count);
-// //	fb_priv->key_bits = count * 8;
-// //	printk(KERN_ERR "key_bits %d\n", fb_priv->key_bits);
+	// TODO some basic sanity checks (check if it is a positive integer or so...).
+	// if (count != 16 && count != 24 && count != 32){
+	//	printk(KERN_ERR "invalid key length %d\n", count);
+	//	return -EINVAL;
+	// }
 
-// //   	fb_priv->rk = kmalloc(RKLENGTH(fb_priv->key_bits)*sizeof(long), GFP_KERNEL);
-// // //	fb_priv->nrounds_egress = rijndaelSetupEncrypt(fb_priv->rk, fb_priv->key, fb_priv->key_bits); 	
-// //   	fb_priv->nrounds_ingress = rijndaelSetupDecrypt(fb_priv->rk, fb_priv->key, fb_priv->key_bits);	
+	// not changed, probably ok.
+	rcu_read_lock();
+	fb_priv = rcu_dereference_raw(fb->private_data);
+	rcu_read_unlock();
 
-// //	write_unlock(&fb_priv->klock);
+	write_lock(&fb_priv->klock);
 
-//	return count;
-// }
 
-// static const struct file_operations fb_ips_proc_fops = {
-//	.owner   = THIS_MODULE,
-//	.open    = fb_ips_proc_open,
-//	.read    = seq_read,
-//	.llseek  = seq_lseek,
-//	.write   = fb_ips_proc_write,
-//	.release = single_release,
-// };
+	//if (copy_from_user(fb_priv->key, ubuff, count)) {
+	if (copy_from_user(fb_priv->header_length, ubuff, count)) {
+		printk(KERN_ERR "could not copy user buffer\n");
+		return -EIO;
+	}
+
+//	//setup key - probably not needed
+//	printk(KERN_ERR "count %d\n", count);
+//	fb_priv->key_bits = count * 8;
+//	printk(KERN_ERR "key_bits %d\n", fb_priv->key_bits);
+
+//   	fb_priv->rk = kmalloc(RKLENGTH(fb_priv->key_bits)*sizeof(long), GFP_KERNEL);
+// //	fb_priv->nrounds_egress = rijndaelSetupEncrypt(fb_priv->rk, fb_priv->key, fb_priv->key_bits); 	
+//   	fb_priv->nrounds_ingress = rijndaelSetupDecrypt(fb_priv->rk, fb_priv->key, fb_priv->key_bits);	
+
+//	write_unlock(&fb_priv->klock);
+
+	return count;
+}
+
+static const struct file_operations fb_ips_proc_fops = {
+	.owner   = THIS_MODULE,
+	.open    = fb_ips_proc_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.write   = fb_ips_proc_write,
+	.release = single_release,
+};
 
 
 
@@ -700,6 +771,12 @@ static struct fblock *fb_ips_ctor(char *name)
 		goto err3;
 	__module_get(THIS_MODULE);
 
+//	create_proc_read_entry(	"fb_ips", 
+//	                       	0 /* default mode */,
+//	                       	NULL /* parent dir */, 
+//	                       	ips_read_procmem,
+//	                       	NULL /* client data */);	
+
 	return fb;
 err3:
 	cleanup_fblock_ctor(fb);
@@ -712,6 +789,9 @@ err:
 
 static void fb_ips_dtor(struct fblock *fb)
 {
+	// added by Stefan
+	//remove_proc_entry("fb_ips", NULL /* parent dir */);
+
 	kfree(rcu_dereference_raw(fb->private_data));
 	module_put(THIS_MODULE);
 }

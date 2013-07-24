@@ -10,7 +10,7 @@
 #include <linux/seqlock.h>
 #include <linux/prefetch.h>
 
-// (probably) needed for the procfs stuff.
+// (probably) needed for procfs.
 #include <linux/seq_file.h>
 
 
@@ -18,7 +18,7 @@
 #include "xt_engine.h"
 
 // include all content analysers
-#include "ca_utf8_nonshortest_form.h"
+//#include "ca_utf8_nonshortest_form.h"
 
 
 
@@ -26,7 +26,7 @@
 
 
 
-
+// TODO: move this function to separate file.
 int ca_utf8_nonshortest_form(	unsigned char * buffer, 
                              	unsigned int packet_length)
 {
@@ -77,8 +77,8 @@ int ca_utf8_nonshortest_form(	unsigned char * buffer,
  
 
 
-	//	 ____	                                                                   	_____
-	//	/    	non-shortest form specific stuff. move to separate file / function.	     \
+	//	 ____	                                  	_____
+	//	/    	non-shortest form specific stuff. 	     \
 
 
 	// constants for the IPS
@@ -99,24 +99,10 @@ int ca_utf8_nonshortest_form(	unsigned char * buffer,
 	int  	header_length	= 1;
 
 
-	//	\____	non-shortest form specific stuff continues below.	_____/
-	//	     	                                                 	
-
-
-
-
-
-	//	 ____	                                                 	_____
-	//	/    	continuation of non-shortest form specific stuff.	     \
-
-	//printk(KERN_DEBUG "The good Buffer is: %s\n", buffer_good);
-	//printk(KERN_DEBUG "The evil Buffer is: %s\n", buffer_evil);
-	//printk(KERN_DEBUG "The debug Buffer is: %s\n", buffer_debug);
 	printk(KERN_DEBUG "[ca_utf8_nonshortest_form] The Buffer (without header) is: %s\n", buffer);
 
 
 	// search for the non-shortest form
-
 	printk(KERN_DEBUG "Packet Size: %d\n", packet_length);
 	
 	// int i; // already defined
@@ -155,19 +141,12 @@ int ca_utf8_nonshortest_form(	unsigned char * buffer,
 		printk(KERN_DEBUG "i'th Element of the Buffer: %c ", cur);
 		printk(KERN_DEBUG "(binary: ");
 
-
-
+		// binary output of current
 		for (z = 128; z > 0; z >>= 1)
 		{
 		    printk((cur & z) ? "1" : "0");
 		}			
 
-		// for (j = 7; j >= 0; --j)
-		// //for (j = 0; j < 8; ++j)
-		// {
-		//	if ( ((cur >> j) %2) ==	1 ) {printf(	"1");}
-		//	if ( ((cur >> j) %2) ==	0 ) {printf(	"0");}
-		// }
 		printk(KERN_DEBUG "). ");
 		printk(KERN_DEBUG "EOF is %d. ", eof);
 
@@ -362,27 +341,10 @@ int ca_utf8_nonshortest_form(	unsigned char * buffer,
 
 		/* code */
 		printk(KERN_DEBUG "\n");
-	} // for each byte in the packet
-
+	} // end for each byte in the packet
 
 	return result;
-
-
-	//	\____	end non-shortest form specific stuff.	_____/
-	//	     	                                     	
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -438,27 +400,6 @@ static int fb_ips_netrx(	const struct fblock * const	fb,
 //	printk(KERN_INFO "[fb_ips] netrx 1\n");
 
 
-
-
-
-	//	 ____	                                      	_____
-	//	/    	hard-coded for debugging. Remove this.	     \
-	//	     	moved.                                	
-	//	\____	end hardcoded debug stuff.            	_____/
-	//
- 
-
-
-	//	 ____	                                                                   	_____
-	//	/    	non-shortest form specific stuff. move to separate file / function.	     \
-	//	     	moved.                                                             	
-	//	\____	non-shortest form specific stuff continues below.                  	_____/
-	//	     	                                                                   	
-
-
-
-
-
 	fb_priv = rcu_dereference_raw(fb->private_data);
 	do {
 		seq = read_seqbegin(&fb_priv->lock);
@@ -489,7 +430,7 @@ static int fb_ips_netrx(	const struct fblock * const	fb,
 	ca_length	= skb->len 	- fb_priv->header_length;
 
 
-	// for each test
+	// "for each content analysis..."
 	// TODO:  irgendwie automatisieren.
 	// Momentane Idee:	Der Präprozessor generiert untenstehenden String mit all den &&.
 	//                	Jedes includete File fügt seine "main"-Funktion selbst der Liste hinzu.
@@ -501,16 +442,6 @@ static int fb_ips_netrx(	const struct fblock * const	fb,
 	//	|| third_contentanalysis()
 	//	etc.
 	printk("[fb_ips] Return value of ca_utf8_nonshortest_form: %d. \n", ret);
-
-
-	//	 ____	                                                 	_____
-	//	/    	continuation of non-shortest form specific stuff.	     \
-	//	     	moved.                                           	
-	//	\____	end non-shortest form specific stuff.            	_____/
-	//	     	                                                 	
-
-
-
 
 	if (ret==1)
 		drop = 1;
@@ -525,6 +456,7 @@ static int fb_ips_netrx(	const struct fblock * const	fb,
 
 	return PPE_SUCCESS;
 }
+
 
 static int fb_ips_event(	struct notifier_block *self, 
                         	unsigned long cmd,
@@ -570,9 +502,7 @@ static int fb_ips_event(	struct notifier_block *self,
 
 
 
-
-
-// from SchlauesBuch
+// Proc Example from Linux Device Driver Book
 
 // int ips_read_procmem(	char *buf, 
 //                      	char **start, 
@@ -634,10 +564,8 @@ static int fb_ips_event(	struct notifier_block *self,
 
 
 
-	//	 ____	                	_____
-	//	/    	copied from AES.	     \
-
-
+	//	 ____	                           	_____
+	//	/    	example copied from AES fb.	     \
 
 
 static int fb_ips_proc_show(struct seq_file *m, void *v)
@@ -681,7 +609,7 @@ static ssize_t fb_ips_proc_write(	struct file      	*file,
 	struct fblock *fb = PDE(file->f_path.dentry->d_inode)->data;
 	struct fb_ips_priv *fb_priv;
 
-	// TODO some basic sanity checks (check if it is a positive integer or so...).
+	// TODO some basic sanity checks (e.g. if the header length is a positive integer...).
 	// if (count != 16 && count != 24 && count != 32){
 	//	printk(KERN_ERR "invalid key length %d\n", count);
 	//	return -EINVAL;
@@ -724,20 +652,9 @@ static const struct file_operations fb_ips_proc_fops = {
 	.release = single_release,
 };
 
-
-
-
-
-
 	//	\____	end copied from AES.	_____/
 	//
  
-
-
-
-
-
-
 
 
 
@@ -771,6 +688,7 @@ static struct fblock *fb_ips_ctor(char *name)
 		goto err3;
 	__module_get(THIS_MODULE);
 
+  	// Added by Stefan
 //	create_proc_read_entry(	"fb_ips", 
 //	                       	0 /* default mode */,
 //	                       	NULL /* parent dir */, 
@@ -789,8 +707,8 @@ err:
 
 static void fb_ips_dtor(struct fblock *fb)
 {
-	// added by Stefan
-	//remove_proc_entry("fb_ips", NULL /* parent dir */);
+  	// added by Stefan
+//	remove_proc_entry("fb_ips", NULL /* parent dir */);
 
 	kfree(rcu_dereference_raw(fb->private_data));
 	module_put(THIS_MODULE);

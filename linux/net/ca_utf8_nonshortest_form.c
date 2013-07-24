@@ -13,6 +13,7 @@
 int ca_utf8_nonshortest_form(	unsigned char * start, 
                              	unsigned int length)
 {
+	printk(KERN_DEBUG "[fb_ips] Checking for UTF-8 non-shortest form...\n");
 
 	//	 ____	                                      	_____
 	//	/    	hard-coded for debugging. Remove this.	     \
@@ -39,18 +40,19 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 	// all possible UTF-8 bit lengths. 
 	// Please do not alter the content of these lines:
 	// Either uncomment what you need or make a copy ofs the line you want and play around in the copy.
-	//char *	buffer_debug 	= "\x00\x01\x02\x04\x08\x10\x20\x40";
-	//int   	packet_length	= 8;
-	//char *	buffer_debug 	= "\xc0\x80\xc0\x81\xc0\x82\xc0\x84\xc0\x88\xc0\x90\xc0\xa0\xc1\x80\xc2\x80\xc4\x80\xc8\x80\xd0\x80";
-	//int   	packet_length	= 12*2;
-	//char *	buffer_debug 	= "\xe0\x80\x80\xe0\x80\x81\xe0\x80\x82\xe0\x80\x84\xe0\x80\x88\xe0\x80\x90\xe0\x80\xa0\xe0\x81\x80\xe0\x82\x80\xe0\x84\x80\xe0\x88\x80\xe0\x90\x80\xe0\xa0\x80\xe1\x80\x80\xe2\x80\x80\xe4\x80\x80\xe8\x80\x80";
-	//int   	packet_length	= 17*3;
-	//char *	buffer_debug 	= "\xf0\x80\x80\x80\xf0\x80\x80\x81\xf0\x80\x80\x82\xf0\x80\x80\x84\xf0\x80\x80\x88\xf0\x80\x80\x90\xf0\x80\x80\xa0\xf0\x80\x81\x80\xf0\x80\x82\x80\xf0\x80\x84\x80\xf0\x80\x88\x80\xf0\x80\x90\x80\xf0\x80\xa0\x80\xf0\x81\x80\x80\xf0\x82\x80\x80\xf0\x84\x80\x80\xf0\x88\x80\x80\xf0\x90\x80\x80\xf0\xa0\x80\x80\xf1\x80\x80\x80\xf2\x80\x80\x80\xf4\x80\x80\x80";
-	//int   	packet_length	= 22*4;
+	//char *	buffer_debug 	/*good*/	= "\x00\x01\x02\x04\x08\x10\x20\x40";
+	//int   	packet_length	        	= 8;
+	//char *	buffer_debug 	/*evil*/	= "\xc0\x80\xc0\x81\xc0\x82\xc0\x84\xc0\x88\xc0\x90\xc0\xa0\xc1\x80\xc2\x80\xc4\x80\xc8\x80\xd0\x80";
+	//int   	packet_length	        	= 12*2;
+	//char *	buffer_debug 	/*evil*/	= "\xe0\x80\x80\xe0\x80\x81\xe0\x80\x82\xe0\x80\x84\xe0\x80\x88\xe0\x80\x90\xe0\x80\xa0\xe0\x81\x80\xe0\x82\x80\xe0\x84\x80\xe0\x88\x80\xe0\x90\x80\xe0\xa0\x80\xe1\x80\x80\xe2\x80\x80\xe4\x80\x80\xe8\x80\x80";
+	//int   	packet_length	        	= 17*3;
+	//char *	buffer_debug 	/*evil*/	= "\xf0\x80\x80\x80\xf0\x80\x80\x81\xf0\x80\x80\x82\xf0\x80\x80\x84\xf0\x80\x80\x88\xf0\x80\x80\x90\xf0\x80\x80\xa0\xf0\x80\x81\x80\xf0\x80\x82\x80\xf0\x80\x84\x80\xf0\x80\x88\x80\xf0\x80\x90\x80\xf0\x80\xa0\x80\xf0\x81\x80\x80\xf0\x82\x80\x80\xf0\x84\x80\x80\xf0\x88\x80\x80\xf0\x90\x80\x80\xf0\xa0\x80\x80\xf1\x80\x80\x80\xf2\x80\x80\x80\xf4\x80\x80\x80";
+	//int   	packet_length	        	= 22*4;
 
-	// copy. play around here.
-	char *	buffer_debug 	= ".\xf0\x90\x80\x80\xf0\xa0\x80\x80\xf1\x80\x80\x80\xf2\x80\x80\x80\xf4\x80\x80\x80";
-	int   	packet_length	= 22;
+	// A copy of the above. You may play around here :-).
+	//char *	buffer_debug 	/*good*/	= ".\xf0\x90\x80\x80\xf0\xa0\x80\x80\xf1\x80\x80\x80\xf2\x80\x80\x80\xf4\x80\x80\x80";
+	char *  	buffer_debug 	/*evil*/	= ".\xf0\x80\x80\x90\xf0\x90\x80\x80\xf0\xa0\x80\x80\xf1\x80\x80\x80\xf2\x80\x80\x80\xf4\x80\x80\x80";
+	int     	packet_length	        	= 22;
 
 
 	//	\____	end hardcoded debug stuff.	_____/
@@ -63,13 +65,15 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 
 
 	// constants for the IPS
-	int	GOOD_FORWARD	= 1;
-	int	EVIL_DROP   	= 0;
-	int	safe_state  	= EVIL_DROP; // adapt as needed or take from procfs
+	const int	GOOD_FORWARD	= 1;
+	const int	EVIL_DROP   	= 0;
+	const int	safe_state  	= EVIL_DROP; // adapt as needed or take from procfs
+
+	// byte which is currently checked.
 	int	i;
 
 	// default
-	int	result	= GOOD_FORWARD; 
+	int	result	= safe_state; 
 
 
 	//   	for debugging only	
@@ -88,14 +92,14 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 	//	 ____	                                                 	_____
 	//	/    	continuation of non-shortest form specific stuff.	     \
 
-	printk("The good Buffer is: %s\n", buffer_good);
-	printk("The evil Buffer is: %s\n", buffer_evil);
-	//printk("The debug Buffer is: %s\n", buffer_debug);
+	printk(KERN_DEBUG "The good Buffer is: %s\n", buffer_good);
+	printk(KERN_DEBUG "The evil Buffer is: %s\n", buffer_evil);
+	//printk(KERN_DEBUG "The debug Buffer is: %s\n", buffer_debug);
 
 
 	// search for the non-shortest form
 
-	printk("Packet Size: %d\n", packet_length);
+	printk(KERN_DEBUG "Packet Size: %d\n", packet_length);
 	
 	// int i; // already defined
 	for (i = header_length; i < packet_length; ++i) // leDebug
@@ -130,8 +134,8 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 		}
 
 
-		printk("i'th Element of the Buffer: %c ", cur);
-		printk("(binary: ");
+		printk(KERN_DEBUG "i'th Element of the Buffer: %c ", cur);
+		printk(KERN_DEBUG "(binary: ");
 
 
 
@@ -146,8 +150,8 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 		//	if ( ((cur >> j) %2) ==	1 ) {printf(	"1");}
 		//	if ( ((cur >> j) %2) ==	0 ) {printf(	"0");}
 		// }
-		printk("). ");
-		printk("EOF is %d. ", eof);
+		printk(KERN_DEBUG "). ");
+		printk(KERN_DEBUG "EOF is %d. ", eof);
 
 
 		// Bytes which contain 7-bit ASCII characters "0xxx xxxx" are valid O:-)
@@ -160,10 +164,11 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 				)
 		    )
 		{
-			printk("Harmless. ");
+			printk(KERN_DEBUG "Harmless. ");
 			if (eof)
 			{
-				printk("\n========== Good Packet O:-) ==========\n");
+				printk(KERN_DEBUG "\n========== Good Packet O:-) ==========\n");
+				result = GOOD_FORWARD; 
 			}
 		} 
 
@@ -174,7 +179,7 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 				&& !(cur & (1 << 5))
 			)
 		{
-			printk("1st byte of a 2-byte char.\n");
+			printk(KERN_DEBUG "1st byte of a 2-byte char.\n");
 			if (
 					!(cur & (1 << 4))
 					&& !(cur & (1 << 3))
@@ -183,15 +188,17 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 				)
 			{
 				// 7-bit character represented with 2 bytes instead of 1 }:-)
-				printk("    7-bit character represented with 2 bytes instead of 1. ");
+				printk(KERN_DEBUG "    7-bit character represented with 2 bytes instead of 1. ");
 
-				printk("\n========== Evil Packet }:-) ==========\n");
+				printk(KERN_DEBUG "\n========== Evil Packet }:-) ==========\n");
+				result = EVIL_DROP;
 				break; 
 			} else {
-				printk("    a regular 2-byte character. "); 
+				printk(KERN_DEBUG "    a regular 2-byte character. "); 
 				if (eof)
 				{
-					printk("\n========== Good Packet O:-) ==========\n");
+					printk(KERN_DEBUG "\n========== Good Packet O:-) ==========\n");
+					result = GOOD_FORWARD;
 				}
 			}
 		}
@@ -205,7 +212,7 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 				&& !(cur & (1 << 4))
 			)
 		{
-			printk("1st byte of a 3-byte char.\n");
+			printk(KERN_DEBUG "1st byte of a 3-byte char.\n");
 			if (
 					!(cur & (1 << 3))
 					&& !(cur & (1 << 2))
@@ -214,17 +221,18 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 				)
 			{
 				// character can be up to 12 bits long, need to check the second byte.
-				printk("    character can be up to 12 bits long, checking the second byte... \n");
+				printk(KERN_DEBUG "    character can be up to 12 bits long, checking the second byte... \n");
 
 				if (eof)
 				{
-					if (safe_state == EVIL_DROP) 
-					{
-						printk("\n========== Evil Packet }:-) ==========\n");
-					} else {
-						printk("\n========== Good Packet O:-) ==========\n");
-						break; 
-					}
+					result = safe_state;
+					// if (safe_state == EVIL_DROP) 
+					// {
+					//	printk(KERN_DEBUG "\n========== Evil Packet }:-) ==========\n");
+					// } else {
+					//	printk(KERN_DEBUG "\n========== Good Packet O:-) ==========\n");
+					//	break; 
+					// }
 				} else {
 					// examine the 2nd byte.
 					if (
@@ -234,27 +242,30 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 					)
 					{
 						// 11 bit character represented with 3 bytes instead of 2 }:-)
-						printk("        11 (or less) bit character represented with 3 bytes instead of 2 (or less). ");
-						printk("\n========== Evil Packet }:-) ==========\n");
+						printk(KERN_DEBUG "        11 (or less) bit character represented with 3 bytes instead of 2 (or less). ");
+						printk(KERN_DEBUG "\n========== Evil Packet }:-) ==========\n");
+						result = EVIL_DROP;
 						break; 
 					} else {
 						// regular 3-byte character
-						printk("        a regular 3-byte character. ");
+						printk(KERN_DEBUG "        a regular 3-byte character. ");
 						if (eof_next)
 						{
-							printk("\n========== Good Packet O:-) ==========\n");
+							printk(KERN_DEBUG "\n========== Good Packet O:-) ==========\n");
+							result = GOOD_FORWARD;
 							break; 
 						} // else: do nothing, the next byte will be ignored.
 					}
 				}
 
-				//printk("\n========== Evil Packet }:-) ==========\n");
+				//printk(KERN_DEBUG "\n========== Evil Packet }:-) ==========\n");
 				//break; 
 			} else {
-				printk("    a regular 3-byte character. "); 
+				printk(KERN_DEBUG "    a regular 3-byte character. "); 
 				if (eof)
 				{
-					printk("\n========== Good Packet O:-) ==========\n");
+					printk(KERN_DEBUG "\n========== Good Packet O:-) ==========\n");
+					result = GOOD_FORWARD;
 				}
 			}
 		}
@@ -270,7 +281,7 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 				&& !(cur & (1 << 3))
 			)
 		{
-			printk("1st byte of a 4-byte char.\n");
+			printk(KERN_DEBUG "1st byte of a 4-byte char.\n");
 			if (
 					!(cur & (1 << 2))
 					&& !(cur & (1 << 1))
@@ -278,17 +289,18 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 				)
 			{
 				// character can be up to 18 bits long, need to check the second byte.
-				printk("    character can be up to 18 bits long, need to check the second byte. \n");
+				printk(KERN_DEBUG "    character can be up to 18 bits long, need to check the second byte. \n");
 
 				if (eof)
 				{
 					// Safe state.
-					if (safe_state == EVIL_DROP) 
-					{
-						printk("\n========== Evil Packet }:-) ==========\n");
-					} else {
-						printk("\n========== Good Packet O:-) ==========\n");
-					}
+					result = safe_state;
+					// if (safe_state == EVIL_DROP) 
+					// {
+					//	printk(KERN_DEBUG "\n========== Evil Packet }:-) ==========\n");
+					// } else {
+					//	printk(KERN_DEBUG "\n========== Good Packet O:-) ==========\n");
+					// }
 				} else {
 					// examine the 2nd byte.
 					if (
@@ -299,28 +311,31 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 					)
 					{
 						// 11 bit character represented with 4 bytes instead of 3 }:-)
-						printk("        16 bit character represented with 4 bytes instead of 3. ");
-						printk("\n========== Evil Packet }:-) ==========\n");
+						printk(KERN_DEBUG "        16 bit character represented with 4 bytes instead of 3. ");
+						printk(KERN_DEBUG "\n========== Evil Packet }:-) ==========\n");
+						result = EVIL_DROP;
 						break; 
 					} else {
 						// regular 3-byte character
-						printk("        a regular 4-byte character. ");
+						printk(KERN_DEBUG "        a regular 4-byte character. ");
 						if (eof_next)
 						{
-							printk("\n========== Good Packet O:-) ==========\n");
+							printk(KERN_DEBUG "\n========== Good Packet O:-) ==========\n");
+							result = GOOD_FORWARD;
 							break; 
 						} // else: do nothing, the next byte will be ignored.
 					}
 				}
 
 
-				//printk("\n========== Evil Packet }:-) ==========\n");
+				//printk(KERN_DEBUG "\n========== Evil Packet }:-) ==========\n");
 				//break; 
 			} else {
-				printk("    a regular 4-byte character. "); 
+				printk(KERN_DEBUG "    a regular 4-byte character. "); 
 				if (eof)
 				{
-					printk("\n========== Good Packet O:-) ==========\n");
+					printk(KERN_DEBUG "\n========== Good Packet O:-) ==========\n");
+					result = GOOD_FORWARD;
 				}
 			}
 		}
@@ -328,7 +343,7 @@ int ca_utf8_nonshortest_form(	unsigned char * start,
 
 
 		/* code */
-		printk("\n");
+		printk(KERN_DEBUG "\n");
 	} // for each byte in the packet
 
 

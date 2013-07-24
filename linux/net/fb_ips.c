@@ -2,6 +2,8 @@
  * TODO Copyright 2012 Stefan Kronig <>
  */
 
+
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -107,10 +109,13 @@ static int fb_ips_netrx(	const struct fblock * const	fb,
 	printk(KERN_INFO "[fb_ips] perform IPS check here\n");
 
 
+	// Good/Evil definition for the IPS
+	const int	GOOD_FORWARD	= 1;
+	const int	EVIL_DROP   	= 0;
 
 
 
-	// TODO determine memory area where the payload is located (skip header und so)
+	// determine memory area where the payload is located (skip header)
 	ca_start 	= skb->data	+ fb_priv->header_length;
 	ca_length	= skb->len 	- fb_priv->header_length;
 
@@ -126,6 +131,7 @@ static int fb_ips_netrx(	const struct fblock * const	fb,
 	//	|| second_contentanalysis()
 	//	|| third_contentanalysis()
 	//	etc.
+	printf("[fb_ips] Return value of ca_utf8_nonshortest_form: %d. \n", ret);
 
 
 	//	 ____	                                                 	_____
@@ -133,6 +139,8 @@ static int fb_ips_netrx(	const struct fblock * const	fb,
 	//	     	moved.                                           	
 	//	\____	end non-shortest form specific stuff.            	_____/
 	//	     	                                                 	
+
+
 
 
 	if (ret==1)
@@ -189,6 +197,118 @@ static int fb_ips_event(	struct notifier_block *self,
 
 	return ret;
 }
+
+
+
+
+
+
+	//	 ____	                	_____
+	//	/    	copied from AES.	     \
+
+
+
+
+static int fb_ips_proc_show(struct seq_file *m, void *v)
+{
+	printk(KERN_DEBUG, "[fb_ips] entered fb_ips_proc_show function. \n");
+
+	struct fblock *fb = (struct fblock *) m->private;
+	struct fb_ips_priv *fb_priv;
+	char sline[64];
+
+	rcu_read_lock();
+	fb_priv = rcu_dereference_raw(fb->private_data);
+	rcu_read_unlock();
+
+	memset(sline, 0, sizeof(sline));
+
+	read_lock(&fb_priv->klock);
+	snprintf(sline, sizeof(sline), "%d\n", (fb_priv->key_bits));
+	read_unlock(&fb_priv->klock);
+
+	seq_puts(m, sline);
+	return 0;
+}
+
+
+static int fb_ips_proc_open(struct inode *inode, struct file *file)
+// probably ok like this.
+{
+	printk(KERN_DEBUG, "[fb_ips] entered fb_ips_proc_open function. \n");
+	return single_open(file, fb_ips_proc_show, PDE(inode)->data);
+}
+
+
+static ssize_t fb_ips_proc_write(	struct file      	*file, 
+                                 	const char __user	* ubuff,
+                                 	size_t           	count, 
+                                 	loff_t           	* offset)
+{
+	printk(KERN_DEBUG, "[fb_ips] entered fb_ips_proc_write function. \n");
+	struct fblock *fb = PDE(file->f_path.dentry->d_inode)->data;
+	struct fb_ips_priv *fb_priv;
+
+	// TODO some basic sanity checks (check if it is a positive integer or so...).
+	// if (count != 16 && count != 24 && count != 32){
+	//	printk(KERN_ERR "invalid key length %d\n", count);
+	//	return -EINVAL;
+	// }
+
+	// not changed, probably ok.
+	rcu_read_lock();
+	fb_priv = rcu_dereference_raw(fb->private_data);
+	rcu_read_unlock();
+
+	write_lock(&fb_priv->klock);
+
+
+	if (copy_from_user(fb_priv->key, ubuff, count)) {
+		printk(KERN_ERR "could not copy user buffer\n");
+		return -EIO;
+	}
+
+//	//setup key - probably not needed
+//	printk(KERN_ERR "count %d\n", count);
+//	fb_priv->key_bits = count * 8;
+//	printk(KERN_ERR "key_bits %d\n", fb_priv->key_bits);
+
+//   	fb_priv->rk = kmalloc(RKLENGTH(fb_priv->key_bits)*sizeof(long), GFP_KERNEL);
+// //	fb_priv->nrounds_egress = rijndaelSetupEncrypt(fb_priv->rk, fb_priv->key, fb_priv->key_bits); 	
+//   	fb_priv->nrounds_ingress = rijndaelSetupDecrypt(fb_priv->rk, fb_priv->key, fb_priv->key_bits);	
+
+//	write_unlock(&fb_priv->klock);
+
+	return count;
+}
+
+static const struct file_operations fb_ips_proc_fops = {
+	.owner   = THIS_MODULE,
+	.open    = fb_ips_proc_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.write   = fb_ips_proc_write,
+	.release = single_release,
+};
+
+
+
+
+
+
+	//	\____	end copied from AES.	_____/
+	//
+ 
+
+
+
+
+
+
+
+
+
+
 
 static struct fblock *fb_ips_ctor(char *name)
 {
@@ -249,14 +369,18 @@ static struct fblock_factory fb_ips_factory = {
 static int __init init_fb_ips_module(void)
 // __init: The kernel can [...] free up used memory resources after [initialisation].
 {
+	printk(KERN_INFO "[fb_ips] registering module... ")
 	return register_fblock_type(&fb_ips_factory);
+	printk(KERN_INFO "done.\n")
 }
 
 static void __exit cleanup_fb_ips_module(void)
 // __exit: Will not even be loaded when the module is compiled into the kernel or the kernel disallows unloading of modules.
 {
+	printk(KERN_INFO "[fb_ips] unregistering module... ")
 	synchronize_rcu();
 	unregister_fblock_type(&fb_ips_factory);
+	printk(KERN_INFO "done.\n")
 }
 
 module_init(init_fb_ips_module); // called on insmod

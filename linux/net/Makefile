@@ -37,7 +37,7 @@ obj-m    += fb_huf.o
 # Stefans IPS Block
 # Needs the IPS itself and all Content Analysers ca_<anything>
 obj-m    += fb_ips.o
-fb_ips-y := fb_ips.o ca_*.o
+#fb_ips-y := fb_ips.o ca_utf8_nonshortest_form.o
 
 
 modules:

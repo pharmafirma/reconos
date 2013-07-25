@@ -430,7 +430,7 @@ END
 # PORT tx_ll_dst_rdy = tx_ll_dst_rdy
 BEGIN hwt_ips
  PARAMETER INSTANCE = hwt_ips_1
- PARAMETER HW_VER = 1.00.a
+ PARAMETER HW_VER = v1.00.a
 # PARAMETER destination = 0b000001
 # PARAMETER sender = 0
  BUS_INTERFACE OS_SFSL = fsl_v20_3b

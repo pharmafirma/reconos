@@ -1,6 +1,6 @@
 ##############################################################################
 ## Filename:          hwt_ips_v2_1_0.pao
-## Description:       Empty hardware thread template
+## Description:       Intrusion Prevention System for LANA
 ## Date:              Tue Sep 13 12:47:26 2011 (by Create and Import Peripheral Wizard)
 ##############################################################################
 
@@ -9,6 +9,12 @@ lib reconos_v3_00_a reconos_pkg vhdl
 lib ana_v1_00_a anaPkg vhdl
 lib ana_v1_00_a ../../../ana_v1_00_a/hdl/vhdl/packetDecoder.vhd vhdl
 lib ana_v1_00_a ../../../ana_v1_00_a/hdl/vhdl/packetEncoder.vhd vhdl
-lib hwt_ips_v1_00_b hwt_ips vhdl
+
+lib hwt_ips_v1_00_a fifo32 vhdl
+
+lib hwt_ips_v1_00_a content_analysis_blocks/ca_utf8_nonshortest_form vhdl
+lib hwt_ips_v1_00_a packet_inspection vhdl
+lib hwt_ips_v1_00_a ips vhdl
+lib hwt_ips_v1_00_a hwt_ips vhdl
 
 

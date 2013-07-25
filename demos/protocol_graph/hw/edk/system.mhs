@@ -305,7 +305,7 @@ BEGIN xps_timer
  PORT Interrupt = xps_timer_0_Interrupt
 END
 
-#BEGIN ana_hwt_hw2sw
+# BEGIN ana_hwt_hw2sw
 # PARAMETER INSTANCE = ana_hwt_hw2sw_0
 # PARAMETER HW_VER = v1.00.a
 # BUS_INTERFACE OS_SFSL = fsl_v20_0b
@@ -319,13 +319,12 @@ END
 # PORT thread_data_rdy = a2s_src_rdy
 # PORT thread_data = a2s_data
 # PORT switch_read_rdy = a2s_dst_rdy
-#END
-
-#BEGIN hwt_add
+# END
+# BEGIN hwt_add
 # PARAMETER INSTANCE = hwt_add_3
 # PARAMETER HW_VER = v1.00.b
 # PARAMETER destination = 0b000100
-# PARAMETER sender = 0 
+# PARAMETER sender = 0
 # BUS_INTERFACE OS_SFSL = fsl_v20_0b
 # BUS_INTERFACE OS_MFSL = fsl_v20_0a
 # BUS_INTERFACE SFIFO32 = fifo32_0b_sfifo32
@@ -337,8 +336,7 @@ END
 # PORT thread_data_rdy = a2s_src_rdy
 # PORT thread_data = a2s_data
 # PORT switch_read_rdy = a2s_dst_rdy
-#END
-
+# END
 BEGIN hwt_s2h
  PARAMETER INSTANCE = hwt_s2h_0
  PARAMETER HW_VER = v1.00.b
@@ -377,7 +375,7 @@ BEGIN hwt_h2s
  PORT switch_read_rdy = d2s_dst_rdy
 END
 
-#BEGIN hwt_add
+# BEGIN hwt_add
 # PARAMETER INSTANCE = hwt_add_4
 # PARAMETER HW_VER = v1.00.b
 # PARAMETER destination = 0b000101
@@ -393,9 +391,7 @@ END
 # PORT thread_data_rdy = d2s_src_rdy
 # PORT thread_data = d2s_data
 # PORT switch_read_rdy = d2s_dst_rdy
-#END
-
-
+# END
 BEGIN hwt_ethernet_test
  PARAMETER INSTANCE = hwt_ethernet_test_0
  PARAMETER HW_VER = v1.00.b
@@ -412,14 +408,16 @@ BEGIN hwt_ethernet_test
  PORT MGTCLK_N = MGTCLK_N
  PORT PRE_PHY_RESET = sys_rst_s
  PORT PHY_RESET = PHY_RESET
-#Decoder
+# Decoder
  PORT switch_data_rdy = s2c_src_rdy
  PORT switch_data = s2c_data
  PORT thread_read_rdy = s2c_dst_rdy
-#Encoder
+# Encoder
  PORT thread_data_rdy = c2s_src_rdy
  PORT thread_data = c2s_data
  PORT switch_read_rdy = c2s_dst_rdy
+END
+
 # PORT rx_ll_sof = rx_ll_sof
 # PORT rx_ll_eof = rx_ll_eof
 # PORT rx_ll_data = rx_ll_data
@@ -430,13 +428,11 @@ BEGIN hwt_ethernet_test
 # PORT tx_ll_data = tx_ll_data
 # PORT tx_ll_src_rdy = tx_ll_src_rdy
 # PORT tx_ll_dst_rdy = tx_ll_dst_rdy
-END
-
-BEGIN hwt_add
- PARAMETER INSTANCE = hwt_add_1
- PARAMETER HW_VER = v1.00.b
+BEGIN hwt_ips
+ PARAMETER INSTANCE = hwt_ips_1
+ PARAMETER HW_VER = 1.00.a
 # PARAMETER destination = 0b000001
-# PARAMETER sender = 0 
+# PARAMETER sender = 0
  BUS_INTERFACE OS_SFSL = fsl_v20_3b
  BUS_INTERFACE OS_MFSL = fsl_v20_3a
  BUS_INTERFACE SFIFO32 = fifo32_3b_sfifo32
@@ -445,10 +441,11 @@ BEGIN hwt_add
  PORT switch_data_rdy = s2b_src_rdy
  PORT switch_data = s2b_data
  PORT thread_read_rdy = s2b_dst_rdy
-
  PORT thread_data_rdy = b2s_src_rdy
  PORT thread_data = b2s_data
  PORT switch_read_rdy = b2s_dst_rdy
+END
+
 # PORT rx_ll_sof = rx_ll_sof
 # PORT rx_ll_eof = rx_ll_eof
 # PORT rx_ll_data = rx_ll_data
@@ -459,8 +456,6 @@ BEGIN hwt_add
 # PORT tx_ll_data = tx_ll_data
 # PORT tx_ll_src_rdy = tx_ll_src_rdy
 # PORT tx_ll_dst_rdy = tx_ll_dst_rdy
-END
-
 BEGIN fsl_v20
  PARAMETER INSTANCE = fsl_v20_0a
  PARAMETER HW_VER = 2.11.e
@@ -776,7 +771,7 @@ BEGIN xps_hwicap
  PORT ICAP_Clk = clk_80_ICAP
 END
 
-#BEGIN noc_switch
+# BEGIN noc_switch
 # PARAMETER INSTANCE = noc_switch_0
 # PARAMETER HW_VER = 1.00.a
 # PARAMETER globalAddr = 0b0001
@@ -788,29 +783,29 @@ END
 # BUS_INTERFACE ringOutput = noc_switch_1_ring_output
 # PORT reset = proc_control_0_reset0
 # PORT clk125 = clk_100_0000MHzMMCM0
-#END
+# END
 BEGIN noc_switch
  PARAMETER INSTANCE = noc_switch_0
  PARAMETER HW_VER = 1.00.a
  PARAMETER globalAddr = 0b0001
- PORT downstream0ReadEnable= s2c_dst_rdy
- PORT o_downstream0_rdy= s2c_src_rdy
- PORT downstream0Data= s2c_data
+ BUS_INTERFACE ringInput = noc_switch_2_ring_output
+ BUS_INTERFACE ringOutput = noc_switch_1_ring_output
+ PORT downstream0ReadEnable = s2c_dst_rdy
+ PORT o_downstream0_rdy = s2c_src_rdy
+ PORT downstream0Data = s2c_data
  PORT downstream0ReadClock = clk_100_0000MHzMMCM0
- PORT downstream1ReadEnable= s2d_dst_rdy
- PORT o_downstream1_rdy= s2d_src_rdy
- PORT downstream1Data= s2d_data
+ PORT downstream1ReadEnable = s2d_dst_rdy
+ PORT o_downstream1_rdy = s2d_src_rdy
+ PORT downstream1Data = s2d_data
  PORT downstream1ReadClock = clk_100_0000MHzMMCM0
- PORT upstream0WriteEnable= c2s_src_rdy
- PORT upstream0Data= c2s_data
- PORT o_upstream0_rdy= c2s_dst_rdy
+ PORT upstream0WriteEnable = c2s_src_rdy
+ PORT upstream0Data = c2s_data
+ PORT o_upstream0_rdy = c2s_dst_rdy
  PORT upstream0WriteClock = clk_100_0000MHzMMCM0
  PORT upstream1WriteEnable = d2s_src_rdy
  PORT upstream1Data = d2s_data
  PORT o_upstream1_rdy = d2s_dst_rdy
  PORT upstream1WriteClock = clk_100_0000MHzMMCM0
- BUS_INTERFACE ringInput = noc_switch_2_ring_output
- BUS_INTERFACE ringOutput = noc_switch_1_ring_output
  PORT reset = proc_control_0_reset0
  PORT clk125 = clk_100_0000MHzMMCM0
 END
@@ -819,32 +814,30 @@ BEGIN noc_switch
  PARAMETER INSTANCE = noc_switch_1
  PARAMETER HW_VER = 1.00.a
  PARAMETER globalAddr = 0b0000
- PORT downstream0ReadEnable= s2a_dst_rdy
- PORT o_downstream0_rdy= s2a_src_rdy
- PORT downstream0Data= s2a_data
+ BUS_INTERFACE ringInput = noc_switch_1_ring_output
+ BUS_INTERFACE ringOutput = noc_switch_2_ring_output
+ PORT downstream0ReadEnable = s2a_dst_rdy
+ PORT o_downstream0_rdy = s2a_src_rdy
+ PORT downstream0Data = s2a_data
 # PORT downstream0ReadEnable= d2s_dst_rdy
 # PORT o_downstream0_rdy= d2s_src_rdy
 # PORT downstream0Data= d2s_data
-#
  PORT downstream0ReadClock = clk_100_0000MHzMMCM0
- PORT downstream1ReadEnable= s2b_dst_rdy
- PORT o_downstream1_rdy= s2b_src_rdy
- PORT downstream1Data= s2b_data
+ PORT downstream1ReadEnable = s2b_dst_rdy
+ PORT o_downstream1_rdy = s2b_src_rdy
+ PORT downstream1Data = s2b_data
  PORT downstream1ReadClock = clk_100_0000MHzMMCM0
- PORT upstream0WriteEnable= a2s_src_rdy
- PORT upstream0Data= a2s_data
- PORT o_upstream0_rdy= a2s_dst_rdy
+ PORT upstream0WriteEnable = a2s_src_rdy
+ PORT upstream0Data = a2s_data
+ PORT o_upstream0_rdy = a2s_dst_rdy
 # PORT upstream0WriteEnable= s2d_src_rdy
 # PORT upstream0Data= s2d_data
 # PORT o_upstream0_rdy= s2d_dst_rdy
-#
  PORT upstream0WriteClock = clk_100_0000MHzMMCM0
  PORT upstream1WriteEnable = b2s_src_rdy
  PORT upstream1Data = b2s_data
  PORT o_upstream1_rdy = b2s_dst_rdy
  PORT upstream1WriteClock = clk_100_0000MHzMMCM0
- BUS_INTERFACE ringInput = noc_switch_1_ring_output
- BUS_INTERFACE ringOutput = noc_switch_2_ring_output
  PORT reset = proc_control_0_reset0
  PORT clk125 = clk_100_0000MHzMMCM0
 END

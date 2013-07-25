@@ -46,35 +46,35 @@ architecture RTL of ips_tb is
 
 	
 	-- some debug signals (TODO completely remove these)
-	signal	debug_fifo_read    	:	std_logic;
-	signal	debug_fifo_write   	:	std_logic;
-	signal	debug_severe_error 	:	std_logic;
-	signal	debug_result_result	:	std_logic;
-	signal	debug_result_valid 	:	std_logic;
+	-- signal	debug_fifo_read    	:	std_logic;
+	-- signal	debug_fifo_write   	:	std_logic;
+	-- signal	debug_severe_error 	:	std_logic;
+	-- signal	debug_result_result	:	std_logic;
+	-- signal	debug_result_valid 	:	std_logic;
 
 	
 	-- the TB has only one component, which ist the entity to be tested (model under test, MUT):
 	component ips is
 		port (
-			-- debug signals
-			debug_fifo_read    	:	in 	std_logic;
-			debug_fifo_write   	:	in 	std_logic;
-			debug_severe_error 	:	out	std_logic; 
-			debug_result_result	:	in 	std_logic; 
-			debug_result_valid 	:	in 	std_logic; 
-			-- everything else 	
-			rst                	:	in 	std_logic;
-			clk                	:	in 	std_logic;
-			rx_ll_sof          	:	in 	std_logic;
-			rx_ll_eof          	:	in 	std_logic;
-			rx_ll_data         	:	in 	std_logic_vector(7 downto 0);
-			rx_ll_src_rdy      	:	in 	std_logic;
-			rx_ll_dst_rdy      	:	out	std_logic;
-			tx_ll_sof          	:	out	std_logic;
-			tx_ll_eof          	:	out	std_logic;
-			tx_ll_data         	:	out	std_logic_vector(7 downto 0);
-			tx_ll_src_rdy      	:	out	std_logic;
-			tx_ll_dst_rdy      	:	in 	std_logic
+			-- -- debug signals
+			-- debug_fifo_read    	:	in 	std_logic;
+			-- debug_fifo_write   	:	in 	std_logic;
+			-- debug_severe_error 	:	out	std_logic; 
+			-- debug_result_result	:	in 	std_logic; 
+			-- debug_result_valid 	:	in 	std_logic; 
+			-- everything else    	
+			rst                   	:	in 	std_logic;
+			clk                   	:	in 	std_logic;
+			rx_ll_sof             	:	in 	std_logic;
+			rx_ll_eof             	:	in 	std_logic;
+			rx_ll_data            	:	in 	std_logic_vector(7 downto 0);
+			rx_ll_src_rdy         	:	in 	std_logic;
+			rx_ll_dst_rdy         	:	out	std_logic;
+			tx_ll_sof             	:	out	std_logic;
+			tx_ll_eof             	:	out	std_logic;
+			tx_ll_data            	:	out	std_logic_vector(7 downto 0);
+			tx_ll_src_rdy         	:	out	std_logic;
+			tx_ll_dst_rdy         	:	in 	std_logic
 		);
 	end component;
 	
@@ -205,8 +205,8 @@ begin
 		cur_len_next     	<= cur_len;
 		packet_state_next	<= packet_state;
 
-		debug_result_result <= '0';
-		debug_result_valid <= '0';
+		-- debug_result_result <= '0';
+		-- debug_result_valid <= '0';
 
 
 		case packet_state is
@@ -266,13 +266,13 @@ begin
 	begin
 	    if rst = RESET then
 			--debug_fifo_read  <= '0';
-			debug_fifo_write <= '0';
+			--debug_fifo_write <= '0';
 	    elsif rising_edge(clk) then
-			debug_fifo_write <= '1';
-			debug_fifo_read <= '1'; -- see process below
-			 if (debug_fifo_write = '0') then
-				debug_fifo_read <= '0';
-			 end if;
+			--debug_fifo_write <= '1';
+			--debug_fifo_read <= '1'; -- see process below
+			-- if (debug_fifo_write = '0') then
+			--	debug_fifo_read <= '0';
+			-- end if;
 	    end if;
 	end process;
 
@@ -286,11 +286,11 @@ begin
 	-- instatiate 1 ips component
 	ips_inst : ips 
 	port map(
-		debug_fifo_read        	=>	debug_fifo_read,
-		debug_fifo_write       	=>	debug_fifo_write,
-		debug_severe_error     	=>	debug_severe_error,
-		debug_result_result    	=>	debug_result_result,
-		debug_result_valid     	=>	debug_result_valid,
+		-- debug_fifo_read     	=>	debug_fifo_read,
+		-- debug_fifo_write    	=>	debug_fifo_write,
+		-- debug_severe_error  	=>	debug_severe_error,
+		-- debug_result_result 	=>	debug_result_result,
+		-- debug_result_valid  	=>	debug_result_valid,
 		-- as always           	
 		rst                    	=>	rst,
 		clk                    	=>	clk,

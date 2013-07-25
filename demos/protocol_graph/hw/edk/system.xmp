@@ -3,6 +3,7 @@ XmpVersion: 13.3
 VerMgmt: 13.3
 IntStyle: default
 Flow: ise
+ModuleSearchPath: pcores/hwt_ips_v1_00_a/../../../
 MHS File: system.mhs
 Architecture: virtex6
 Device: xc6vlx240t

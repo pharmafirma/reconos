@@ -33,23 +33,23 @@ entity ips is
 	--		sender     		: std_logic
 	--	);
 	port (
-		debug_fifo_read    	:	in 	std_logic;
-		debug_fifo_write   	:	in 	std_logic;
-		debug_severe_error 	:	out	std_logic; 
-		debug_result_result	:	in 	std_logic; 
-		debug_result_valid 	:	in 	std_logic; 
-		rst                	:	in 	std_logic;
-		clk                	:	in 	std_logic;
-		rx_ll_sof          	:	in 	std_logic;
-		rx_ll_eof          	:	in 	std_logic;
-		rx_ll_data         	:	in 	std_logic_vector(7 downto 0);
-		rx_ll_src_rdy      	:	in 	std_logic;
-		rx_ll_dst_rdy      	:	out	std_logic;	
-		tx_ll_sof          	:	out	std_logic;
-		tx_ll_eof          	:	out	std_logic;
-		tx_ll_data         	:	out	std_logic_vector(7 downto 0);
-		tx_ll_src_rdy      	:	out	std_logic;
-		tx_ll_dst_rdy      	:	in 	std_logic
+		-- debug_fifo_read    	:	in 	std_logic;
+		-- debug_fifo_write   	:	in 	std_logic;
+		-- debug_severe_error 	:	out	std_logic; 
+		-- debug_result_result	:	in 	std_logic; 
+		-- debug_result_valid 	:	in 	std_logic; 
+		rst                   	:	in 	std_logic;
+		clk                   	:	in 	std_logic;
+		rx_ll_sof             	:	in 	std_logic;
+		rx_ll_eof             	:	in 	std_logic;
+		rx_ll_data            	:	in 	std_logic_vector(7 downto 0);
+		rx_ll_src_rdy         	:	in 	std_logic;
+		rx_ll_dst_rdy         	:	out	std_logic;	
+		tx_ll_sof             	:	out	std_logic;
+		tx_ll_eof             	:	out	std_logic;
+		tx_ll_data            	:	out	std_logic_vector(7 downto 0);
+		tx_ll_src_rdy         	:	out	std_logic;
+		tx_ll_dst_rdy         	:	in 	std_logic
 	);
 end ips;
 
